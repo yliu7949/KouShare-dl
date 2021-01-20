@@ -79,5 +79,5 @@ KouShare-dl是一个用于从[“蔻享学术”](https://www.koushare.com/)视�
 再次运行您上一次使用的下载命令，KouShare-dl会自动跳过已下载完成的视频，并继续完成您的下载。
 
 # 鸣谢
-特别感谢 [JetBrains](https://www.jetbrains.com/) 提供的 [Goland](https://www.jetbrains.com/go) 等 IDE 的授权。
+特别感谢 [JetBrains](https://www.jetbrains.com/) 提供的 [GoLand](https://www.jetbrains.com/go) 等 IDE 的授权。
 特别感谢为KouShare-dl v0.1版本测试各项功能的小伙伴们。
