@@ -1,4 +1,5 @@
 # KouShare-dl
+[![Build Status](https://github.com/yliu7949/KouShare-dl/workflows/Go/badge.svg)](https://github.com/yliu7949/KouShare-dl/actions?query=workflow%3AGo)
 [![License](https://img.shields.io/github/license/yliu7949/KouShare-dl.svg)](https://github.com/yliu7949/KouShare-dl/blob/master/LICENSE)
 
 KouShare-dl是一个用于从[“蔻享学术”](https://www.koushare.com/)视频网站下载视频的CLI工具。
