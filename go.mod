@@ -1,4 +1,4 @@
-module github.com\yliu7949\KouShare-dl
+module github.com/yliu7949/KouShare-dl
 
 go 1.15
 
