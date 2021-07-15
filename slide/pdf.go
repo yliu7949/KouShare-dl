@@ -1,3 +1,5 @@
+// +build !windows
+
 package slide
 
 import (
@@ -11,7 +13,7 @@ import (
 
 var qpdfBinPath = ""
 
-func removeWM(fileName string) {
+func optimizePDF(fileName string) {
 	_ = decompressPdfFile(fileName)
 	offsetMap := getOffsetFromXref(fileName)
 	objectSlice := getObjectSlice(fileName)

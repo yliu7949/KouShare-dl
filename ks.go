@@ -1,17 +1,25 @@
 package main
 
 import (
-	"github.com/spf13/cobra"
+	"fmt"
+	"regexp"
 
+	//"github.com/pkg/profile"
+	"github.com/spf13/cobra"
 	"github.com/yliu7949/KouShare-dl/live"
 	"github.com/yliu7949/KouShare-dl/slide"
+	"github.com/yliu7949/KouShare-dl/user"
 	"github.com/yliu7949/KouShare-dl/video"
 )
 
 func main() {
+	//defer profile.Start().Stop()
 	var v video.Video
-	var path string
-	var isSeries bool
+	var (
+		path     string
+		isSeries bool
+		quality  string
+	)
 
 	var cmdInfo = &cobra.Command{
 		Use:   "info [vid]",
@@ -26,7 +34,7 @@ func main() {
 	var cmdSave = &cobra.Command{
 		Use:   "save [vid]",
 		Short: "保存指定vid的视频",
-		Long:  `保存指定vid的视频到本地计算机，付费视频除外.`,
+		Long:  `保存指定vid的视频到本地计算机，未登陆时仅可下载标清视频，登录后可以下载更高清晰度的视频.仅能下载已购买的付费视频.`,
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			v.Vid = args[0]
@@ -35,14 +43,15 @@ func main() {
 			}
 			v.SaveDir = path
 			if isSeries {
-				v.DownloadSeriesVideos()
+				v.DownloadSeriesVideos(quality)
 			} else {
-				v.DownloadSingleVideo()
+				v.DownloadSingleVideo(quality)
 			}
 		},
 	}
 	cmdSave.Flags().StringVarP(&path, "path", "p", `.\`, "指定保存视频的路径")
 	cmdSave.Flags().BoolVarP(&isSeries, "series", "s", false, "指定是否下载系列视频")
+	cmdSave.Flags().StringVarP(&quality, "quality", "q", `high`, "指定下载视频的清晰度（high、standard或low）")
 
 	var l live.Live
 	var liveTime string //开播时间，格式应为"2006-01-02 15:04:05"
@@ -98,15 +107,54 @@ func main() {
 				path = path + "\\"
 			}
 			s.SaveDir = path
-			s.DownloadSlides(isSeries, qpdfBinPath)
+			if qpdfBinPath != "" {
+				if qpdfBinPath[len(qpdfBinPath)-1:] != "\\" && qpdfBinPath[len(qpdfBinPath)-1:] != "/" {
+					qpdfBinPath = qpdfBinPath + "\\"
+				}
+			}
+			s.QpdfPath = qpdfBinPath
+			if isSeries {
+				s.DownloadSeriesSlides()
+			} else {
+				s.DownloadSingleSlide()
+			}
 		},
 	}
 	cmdSlide.Flags().StringVarP(&path, "path", "p", `.\`, "指定保存课件的路径")
 	cmdSlide.Flags().BoolVarP(&isSeries, "series", "s", false, "指定是否下载整个系列的所有课件")
 	cmdSlide.Flags().StringVar(&qpdfBinPath, "qpdf-bin", "", "指定qpdf的bin文件夹所在的路径")
 
+	var u user.User
+	var cmdLogin = &cobra.Command{
+		Use:   "login [phone number]",
+		Short: "通过短信验证码获取“蔻享学术”登陆凭证",
+		Long:  `[phone number]参数为手机号码（格式15012345678），输入短信验证码以登陆“蔻享学术”平台并将登陆凭证保存至本地.登录后一周内免再次登录.`,
+		Args:  cobra.MinimumNArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			re := regexp.MustCompile(`[1][34578][0-9]{9}`)
+			if !re.MatchString(args[0]) {
+				fmt.Println("手机号码格式不正确")
+				return
+			}
+			u.PhoneNumber = args[0]
+			if err := u.Login(); err != nil {
+				fmt.Println("登录失败：", err)
+				return
+			}
+		},
+	}
+	var cmdLogout = &cobra.Command{
+		Use:   "logout",
+		Short: "退出登陆",
+		Long:  `退出登录并删除保存在本地的登陆凭证文件.`,
+		Args:  cobra.MinimumNArgs(0),
+		Run: func(cmd *cobra.Command, args []string) {
+			u.Logout()
+		},
+	}
+
 	var rootCmd = &cobra.Command{Use: "ks"}
-	rootCmd.AddCommand(cmdInfo, cmdSave, cmdRecord, cmdMerge, cmdSlide)
-	rootCmd.Version = "v0.5"
+	rootCmd.AddCommand(cmdInfo, cmdSave, cmdRecord, cmdMerge, cmdSlide, cmdLogin, cmdLogout)
+	rootCmd.Version = "v0.7"
 	_ = rootCmd.Execute()
 }

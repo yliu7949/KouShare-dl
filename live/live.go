@@ -12,19 +12,22 @@ import (
 	"time"
 
 	"github.com/tidwall/gjson"
+	"github.com/yliu7949/KouShare-dl/user"
 )
 
+// Live 包含房间号、直播链接和直播状态等信息
 type Live struct {
 	lid      string
 	RoomID   string
 	isLive   string
 	title    string
 	date     string
-	m3u8Url  string
-	newTsUrl string
+	m3u8URL  string
+	newTsURL string
 	SaveDir  string
 }
 
+// WaitAndRecordTheLive 倒计时结束后开始录制直播
 func (l *Live) WaitAndRecordTheLive(liveTime string, chooseAutoMerge bool) {
 	if liveTime != "" {
 		loc, _ := time.LoadLocation("Local")
@@ -39,10 +42,9 @@ func (l *Live) WaitAndRecordTheLive(liveTime string, chooseAutoMerge bool) {
 				if parsedTime.Unix()-time.Now().Unix() <= 0 {
 					fmt.Println("\n直播时间到。")
 					return
-				} else {
-					fmt.Printf("\r 还有%d秒开始直播...", parsedTime.Unix()-time.Now().Unix())
-					time.Sleep(time.Second)
 				}
+				fmt.Printf("\r 还有%d秒开始直播...", parsedTime.Unix()-time.Now().Unix())
+				time.Sleep(time.Second)
 			}
 		}()
 		time.Sleep(deltaTime)
@@ -58,10 +60,10 @@ func (l *Live) WaitAndRecordTheLive(liveTime string, chooseAutoMerge bool) {
 	fmt.Println("运行录制程序...")
 	var url string
 	for {
-		l.getNewTsUrlBym3u8()
-		if l.newTsUrl != url {
-			url = l.newTsUrl
-			fmt.Println(l.newTsUrl[28:], "...")
+		l.getNewTsURLBym3u8()
+		if l.newTsURL != url {
+			url = l.newTsURL
+			fmt.Println(l.newTsURL[28:], "...")
 			if chooseAutoMerge {
 				l.downloadAndMergeTsFile()
 			} else {
@@ -77,29 +79,9 @@ func (l *Live) WaitAndRecordTheLive(liveTime string, chooseAutoMerge bool) {
 	}
 }
 
-func MyGetRequest(url string) (string, error) {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Accept", "application/json, text/plain, */*")
-	req.Header.Set("Accept-Encoding", "gzip, deflate, br")
-	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9")
-	req.Header.Set("Referer", "https://www.koushare.com/")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.105 Safari/537.36")
-	resp, _ := http.DefaultClient.Do(req)
-	defer resp.Body.Close()
-
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%s", data), nil
-}
-
 func (l *Live) getLidByRoomID() {
-	Url := "https://www.koushare.com/api/api-live/getLidByRoomid?roomid=" + l.RoomID
-	if str, err := MyGetRequest(Url); err != nil {
+	URL := "https://api.koushare.com/api/api-live/getLidByRoomid?roomid=" + l.RoomID
+	if str, err := user.MyGetRequest(URL); err != nil {
 		fmt.Println("Get请求出错：", err)
 	} else {
 		l.lid = gjson.Get(str, "data").String()
@@ -107,8 +89,8 @@ func (l *Live) getLidByRoomID() {
 }
 
 func (l *Live) checkLiveStatus() {
-	Url := "https://www.koushare.com/api/api-live/checkLiveStatus?lid=" + l.lid
-	if str, err := MyGetRequest(Url); err != nil {
+	URL := "https://api.koushare.com/api/api-live/checkLiveStatus?initial=1&lid=" + l.lid
+	if str, err := user.MyGetRequest(URL); err != nil {
 		fmt.Println("Get请求出错：", err)
 	} else {
 		l.isLive = gjson.Get(str, "data.islive").String()
@@ -116,8 +98,8 @@ func (l *Live) checkLiveStatus() {
 }
 
 func (l *Live) getLiveByRoomID(chooseHighQuality bool) {
-	Url := "https://www.koushare.com/api/api-live/getLiveByRoomid?roomid=" + l.RoomID
-	str, err := MyGetRequest(Url)
+	URL := "https://api.koushare.com/api/api-live/getLiveByRoomid?roomid=" + l.RoomID + "&allData=1"
+	str, err := user.MyGetRequest(URL)
 	if err != nil {
 		fmt.Println("Get请求出错：", err)
 		return
@@ -125,24 +107,24 @@ func (l *Live) getLiveByRoomID(chooseHighQuality bool) {
 	l.title = gjson.Get(str, "data.ltitle").String()
 	l.date = gjson.Get(str, "data.livedate").String()
 	if chooseHighQuality {
-		l.m3u8Url = gjson.Get(str, "data.hlsurl").String()
+		l.m3u8URL = gjson.Get(str, "data.hlsurl").String()
 	} else {
-		l.m3u8Url = gjson.Get(str, "data.bqhlsurl").String()
+		l.m3u8URL = gjson.Get(str, "data.bqhlsurl").String()
 	}
 }
 
-func (l *Live) getNewTsUrlBym3u8() {
-	str, err := MyGetRequest(l.m3u8Url)
+func (l *Live) getNewTsURLBym3u8() {
+	str, err := user.MyGetRequest(l.m3u8URL)
 	if err != nil {
 		fmt.Println("Get请求出错：", err)
 		return
 	}
 	lines := strings.Split(str, "\n")
-	l.newTsUrl = "https://live.am-stc.cn/live/" + lines[len(lines)-2 : len(lines)-1][0]
+	l.newTsURL = "https://live.am-stc.cn/live/" + lines[len(lines)-2 : len(lines)-1][0]
 }
 
 func (l *Live) downloadTsFile() {
-	req, err := http.NewRequest(http.MethodGet, l.newTsUrl, nil)
+	req, err := http.NewRequest(http.MethodGet, l.newTsURL, nil)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
@@ -158,7 +140,7 @@ func (l *Live) downloadTsFile() {
 	resp, _ := http.DefaultClient.Do(req)
 	defer resp.Body.Close()
 
-	fileName := l.SaveDir + l.newTsUrl[28:] + ".tmp"
+	fileName := l.SaveDir + l.newTsURL[28:] + ".tmp"
 	dstFile, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -169,14 +151,14 @@ func (l *Live) downloadTsFile() {
 		return
 	}
 	_ = dstFile.Close()
-	if err := os.Rename(fileName, l.SaveDir+l.newTsUrl[28:]); err != nil {
+	if err := os.Rename(fileName, l.SaveDir+l.newTsURL[28:]); err != nil {
 		fmt.Println(err)
 		return
 	}
 }
 
 func (l *Live) downloadAndMergeTsFile() {
-	req, err := http.NewRequest(http.MethodGet, l.newTsUrl, nil)
+	req, err := http.NewRequest(http.MethodGet, l.newTsURL, nil)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
@@ -212,6 +194,7 @@ func (l *Live) downloadAndMergeTsFile() {
 	}
 }
 
+// MergeTsFiles 将录制得到的众多.ts文件合并为一个.mp4文件
 func MergeTsFiles(dir string, dstFileName string) {
 	fmt.Println("开始合并视频文件...")
 	var tsFiles []string

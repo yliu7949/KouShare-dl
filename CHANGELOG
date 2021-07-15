@@ -1,13 +1,24 @@
+Friday, 15 July 2021: Version 0.7
+        Added "login" and "logout" commands for handling the token.
+        Added "--quality" flag that allows users to download videos of various qualities.
+        Allowed users to download paid videos that they own.
+        Fixed the issue that the information of paid videos could not be displayed.
+        Rewrote the code of "slide.go".
+        Updated the calling code of KouShare API.
+        Moved MyGetRequest function from live package to user package.
+        Changed the Golang version from 1.15 to 1.16.
+        Used UPX to compact the binary file.
+
 Friday, 5 February 2021: Version 0.5
-        changed the structure of this project.
-        added "record" and "merge" commands for recording the lives.
-        added "slide" command for downloading coursewares.
-        added "--qpdf-bin" flag for optimizing pdf files automatically.
-        added "-@", "--autoMerge" and other flags.
-        optimized the codes about HTTP request.
-        changed the naming method of the folders that save the series videos.
+        Changed the structure of this project.
+        Added "record" and "merge" commands for recording the lives.
+        Added "slide" command for downloading coursewares.
+        Added "--qpdf-bin" flag for optimizing pdf files automatically.
+        Added "-@", "--autoMerge" and other flags.
+        Optimized the codes about HTTP request.
+        Changed the naming method of the folders that save the series videos.
 
 Tuesday, 19 January 2021: Version 0.2
-        added "info" command.
-        added "save" command and some flags.
-        updated README file.
+        Added "info" command.
+        Added "save" command and some flags.
+        Updated README file.

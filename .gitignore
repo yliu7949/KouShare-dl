@@ -1,0 +1,11 @@
+# Downloaded files
+*.mp4
+*.ts
+*.tmp
+*.pdf
+
+*.exe
+*.token
+*.txt
+
+.idea/
