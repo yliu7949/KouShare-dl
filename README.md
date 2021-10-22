@@ -4,6 +4,7 @@
 [![Build Status](https://github.com/yliu7949/KouShare-dl/workflows/Go/badge.svg)](https://github.com/yliu7949/KouShare-dl/actions?query=workflow%3AGo)
 [![Go Report Card](https://goreportcard.com/badge/github.com/yliu7949/KouShare-dl)](https://goreportcard.com/report/github.com/yliu7949/KouShare-dl)
 [![Github All Releases](https://img.shields.io/github/downloads/yliu7949/KouShare-dl/total.svg)](https://github.com/yliu7949/KouShare-dl/releases/latest)
+<a title="Hits" target="_blank" href="https://github.com/yliu7949/KouShare-dl"><img src="https://hits.b3log.org/yliu7949/KouShare-dl.svg"></a>
 
 KouShare-dl 是一个使用 [Cobra](https://github.com/spf13/cobra)
 开发的用于从 [“蔻享学术”](https://www.koushare.com/) 视频网站下载视频和课件的 CLI 工具。
