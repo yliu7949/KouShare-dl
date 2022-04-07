@@ -131,7 +131,7 @@ func main() {
 		Long:  `[phone number]参数为手机号码（格式15012345678），输入短信验证码以登陆“蔻享学术”平台并将登陆凭证保存至本地.登录后一周内免再次登录.`,
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			re := regexp.MustCompile(`[1][34578][0-9]{9}`)
+			re := regexp.MustCompile(`[1][3-9][0-9]{9}`)
 			if !re.MatchString(args[0]) {
 				fmt.Println("手机号码格式不正确")
 				return

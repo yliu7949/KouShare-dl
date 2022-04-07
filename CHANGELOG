@@ -1,3 +1,6 @@
+Friday, 8 April 2022: Version 0.7.2
+        Fixed the bug that the second digit of the mobile phone number cannot be 9.
+
 Friday, 15 July 2021: Version 0.7
         Added "login" and "logout" commands for handling the token.
         Added "--quality" flag that allows users to download videos of various qualities.
