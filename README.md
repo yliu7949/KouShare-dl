@@ -1,3 +1,7 @@
+<p align="center">
+  <img width="240" src="./logo.png" style="text-align: center;">
+</p>
+
 # KouShare-dl
 
 [![License](https://img.shields.io/github/license/yliu7949/KouShare-dl.svg)](https://github.com/yliu7949/KouShare-dl/blob/master/LICENSE)
