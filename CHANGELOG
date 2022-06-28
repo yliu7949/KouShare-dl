@@ -1,3 +1,11 @@
+Tuesday, 28 June 2022: Version 0.8.0
+        Fixed the problem that the live broadcast could not be recorded due to the change of the URL of the .ts files.
+        Added prompts for downloading quick replay and official replay videos.
+        Added "version" command for checking the latest version.
+        Added "--replay" flag for downloading replay videos.
+        Fixed the bug that file naming failed when saving some videos.
+        Upgraded dependencies.
+
 Friday, 8 April 2022: Version 0.7.2
         Fixed the bug that the second digit of the mobile phone number cannot be 9.
 

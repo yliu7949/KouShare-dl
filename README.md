@@ -9,6 +9,8 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/yliu7949/KouShare-dl)](https://goreportcard.com/report/github.com/yliu7949/KouShare-dl)
 [![Github All Releases](https://img.shields.io/github/downloads/yliu7949/KouShare-dl/total.svg)](https://github.com/yliu7949/KouShare-dl/releases/latest)
 <a title="Hits" target="_blank" href="https://github.com/yliu7949/KouShare-dl"><img src="https://hits.b3log.org/yliu7949/KouShare-dl.svg"></a>
+[![Github Release Version](https://img.shields.io/github/v/release/yliu7949/KouShare-dl?color=green&include_prereleases)](https://github.com/yliu7949/KouShare-dl/releases/latest)
+
 
 KouShare-dl 是一个使用 [Cobra](https://github.com/spf13/cobra)
 开发的用于从 [“蔻享学术”](https://www.koushare.com/) 视频网站下载视频和课件的 CLI 工具。
@@ -34,9 +36,10 @@ KouShare-dl 是一个使用 [Cobra](https://github.com/spf13/cobra)
     + [3.2 下载视频至指定文件夹](#32-下载视频至指定文件夹)
     + [3.3 下载某个系列的所有视频](#33-下载某个系列的所有视频)
     + [3.4 下载不同清晰度的视频](#34-下载不同清晰度的视频)
-  * [四、录制直播与合并视频片段](#四录制直播与合并视频片段)
+  * [四、录制直播与下载快速回放](#四录制直播与下载快速回放)
     + [4.1 对指定直播间进行录制](#41-对指定直播间进行录制)
     + [4.2 合并录制的视频片段](#42-合并录制的视频片段)
+    + [4.3 下载直播间快速回放视频](#43-下载直播间快速回放视频)
   * [五、下载课件](#五下载课件)
     + [5.1 下载单个课件和系列课件](#51-下载单个课件和系列课件)
     + [5.2 优化 pdf 文件【实验性功能】](#52-优化-pdf-文件实验性功能)
@@ -65,6 +68,8 @@ KouShare-dl 是一个使用 [Cobra](https://github.com/spf13/cobra)
 - 定时录制直播间
 
 - 继续上一次的直播间录制
+
+- 下载直播间的快速回放🚀
 
 - 下载单个课件或整个系列的课件
 
@@ -95,10 +100,10 @@ KouShare-dl 是一个使用 [Cobra](https://github.com/spf13/cobra)
 
 ```shell
 cd C:\Users\lenovo\Downloads\
-ks -v
+ks version
 ```
 
-若出现`ks version v0.7`字样，则说明可以正常使用。接下来您可以继续输入 KouShare-dl 程序的命令来进行交互。比如，输入`ks help`并回车，您就可以看到 KouShare-dl 程序的帮助信息了。
+若出现`KouShare-dl v0.8.0`字样，则说明可以正常使用。接下来您可以继续输入 KouShare-dl 程序的命令来进行交互。比如，输入`ks help`并回车，您就可以看到 KouShare-dl 程序的帮助信息了。
 
 # 命令简介
 
@@ -118,9 +123,10 @@ KouShare-dl 程序的命令具有下面的格式：
   login       通过短信验证码获取“蔻享学术”登陆凭证
   logout      退出登陆
   merge       合并下载的视频片段文件
-  record      录制指定直播间ID的直播
-  save        保存指定vid的视频（vid为视频网址里最后面的一串数字）
+  record      录制指定直播间ID的直播，命令别名为live
+  save        保存指定vid的视频（vid为视频网址里最后面的一串数字），命令别名为video
   slide       下载指定vid的视频对应的课件
+  version     输出版本号，并检查最新版本
 ```
 
 可使用的 flag 参数：
@@ -133,6 +139,7 @@ KouShare-dl 程序的命令具有下面的格式：
   -p, --path       指定保存文件的路径（若不指定，则默认为该程序当前所在的路径）
   -q, --quality    指定下载视频的清晰度（high为超清，standard为高清，low为标清，不指定则默认为超清）
       --qpdf-bin   指定qpdf的bin文件夹所在的路径（注：该flag无简写形式）
+  -r, --replay     指定是否下载直播间快速回放视频
   -s, --series     指定是否下载整个系列的文件
   -v, --version    查看版本号
 ```
@@ -220,6 +227,8 @@ https://www.koushare.com/video/videodetail/7412
 
 该命令执行完毕后，程序所在的路径下会出现一个`.mp4`格式的超清视频文件，这就是下载下来的 vid 为`7552`的蔻享视频。
 
+> `save`命令的别名是`video`，因此`ks save 7552`和`ks video 7552`的功能是相同的。
+
 ### 3.2 下载视频至指定文件夹
 
 若要指定保存视频的位置，可以加上`-p`参数，并为其指定一个新值（如`D:\temp\`）以覆盖默认值（当前所在路径），如下所示：
@@ -276,7 +285,7 @@ ks save 7304 --quality=low
 - 若您指定的该 flag 的值并不在以上三种值之内，程序会判定要下载的清晰度为标清。
 - 登录状态下，若您要下载的视频没有您指定的清晰度，程序会选择次于您指定清晰度的清晰度进行视频的下载。
 
-## 四、录制直播与合并视频片段
+## 四、录制直播与下载快速回放
 
 **每个蔻享直播间都有唯一对应的 id，即 roomID。** 在蔻享学术网站进入某个直播间的页面后，该页面网址的最后的数字部分即为该直播间的房间号。例如，在下面的网址中，`676216`是该直播间的 roomID。
 
@@ -291,6 +300,7 @@ https://www.koushare.com/lives/room/676216
 |   `-@`   |    `--at`     | 开播时间，格式为"2006-01-02 15:04:05" | `String` | 立即开始录制 |
 |   `-a`   | `--autoMerge` |  指定是否自动合并下载的视频片段文件   |  `Bool`  |      否      |
 |   `-p`   |   `--path`    |        指定保存录制视频的路径         | `String` | 当前所在路径 |
+|   `-r`   |  `--replay`   |    指定是否下载直播间快速回放视频     |  `Bool`  |      否      |
 
 合并下载的`.ts`视频片段使用`ks merge <directory> <flags> `命令。与`merge`对应的 flag 有一个：
 
@@ -306,7 +316,9 @@ https://www.koushare.com/lives/room/676216
   ks record 751111 -a
 ```
 
-执行命令后程序会立即开始录制。但如果此时尚未开播，您会收到`直播未按时开始或已结束`的提示，随后程序会自动退出。因此，推荐将该命令用于录制已开始直播的直播间。
+执行命令后程序会立即开始录制。但如果此时尚未开播，您会收到相关提示（距离开播还有一段时间、正式回放视频已上线等），随后程序会自动退出。该命令用于录制已开始直播的直播间，或者查看回放视频是否上线等信息。
+
+> `record`命令的别名是`live`，所以` ks record 751111 -a`和` ks live 751111 -a`的功能是相同的。
 
 如果直播尚未开始，但您知道准确的开播时间，那么可以用`-@`参数指定开播时间，如：
 
@@ -342,6 +354,39 @@ ks merge D:\temp\直播录制 -n 课程.ts
 
 ```shell
 ks merge -n output.ts
+```
+
+### 4.3 下载直播间快速回放视频
+
+**示例：**使用`ks live 447482 `命令得到“快速回放视频已上线”的信息：
+
+```bash
+$ ks live 447482
+
+直播已结束。快速回放视频已上线，访问 https://www.koushare.com/lives/room/447482 观看快速回放或使用“ks record 447482 --replay”命令下载快速回放视频。
+```
+
+使用`ks live 447482 -r `或`ks record 447482 --replay`命令即可下载快速回放视频：
+
+```bash
+$ ks live 447482 -r
+
+开始下载快速回放视频...
+2126692489_2083434824_1.ts?start=0 ...
+2126692489_2083434824_1.ts?start=1752160 ...
+2126692489_2083434824_1.ts?start=3504696 ...
+ ...
+快速回放视频下载完成。
+```
+
+可使用`-p`指定保存快速回放视频的路径，如：
+
+```bash
+ks live 447482 -r -p "C:\Users\lenovo\Desktop"
+```
+
+```bash
+ks live 447482 -r --path="C:\Users\lenovo\Desktop"
 ```
 
 ## 五、下载课件

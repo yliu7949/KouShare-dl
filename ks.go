@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"regexp"
 
 	//"github.com/pkg/profile"
@@ -48,6 +49,7 @@ func main() {
 				v.DownloadSingleVideo(quality)
 			}
 		},
+		Aliases: []string{"video"},
 	}
 	cmdSave.Flags().StringVarP(&path, "path", "p", `.\`, "指定保存视频的路径")
 	cmdSave.Flags().BoolVarP(&isSeries, "series", "s", false, "指定是否下载系列视频")
@@ -55,7 +57,8 @@ func main() {
 
 	var l live.Live
 	var liveTime string //开播时间，格式应为"2006-01-02 15:04:05"
-	var chooseAutoMerge bool
+	var autoMerge bool
+	var replay bool
 	var dstFileName string
 
 	var cmdRecord = &cobra.Command{
@@ -69,12 +72,18 @@ func main() {
 				path = path + "\\"
 			}
 			l.SaveDir = path
-			l.WaitAndRecordTheLive(liveTime, chooseAutoMerge)
+			if !replay {
+				l.WaitAndRecordTheLive(liveTime, autoMerge)
+			} else {
+				l.DownloadReplayVideo()
+			}
 		},
+		Aliases: []string{"live"},
 	}
 	cmdRecord.Flags().StringVarP(&path, "path", "p", `.\`, "指定保存视频的路径")
 	cmdRecord.Flags().StringVarP(&liveTime, "at", "@", "", `开播时间，格式为"2006-01-02 15:04:05"`)
-	cmdRecord.Flags().BoolVarP(&chooseAutoMerge, "autoMerge", "a", false, "指定是否自动合并下载的视频片段文件")
+	cmdRecord.Flags().BoolVarP(&autoMerge, "autoMerge", "a", false, "指定是否自动合并下载的视频片段文件")
+	cmdRecord.Flags().BoolVarP(&replay, "replay", "r", false, "指定是否下载直播间快速回放视频")
 	var cmdMerge = &cobra.Command{
 		Use:   "merge [directory]",
 		Short: "合并下载的视频片段文件",
@@ -131,7 +140,7 @@ func main() {
 		Long:  `[phone number]参数为手机号码（格式15012345678），输入短信验证码以登陆“蔻享学术”平台并将登陆凭证保存至本地.登录后一周内免再次登录.`,
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			re := regexp.MustCompile(`[1][3-9][0-9]{9}`)
+			re := regexp.MustCompile(`1[3-9]\d{9}`)
 			if !re.MatchString(args[0]) {
 				fmt.Println("手机号码格式不正确")
 				return
@@ -153,8 +162,26 @@ func main() {
 		},
 	}
 
+	const version = "v0.8.0"
+	var cmdVersion = &cobra.Command{
+		Use:   "version",
+		Short: "输出版本号，并检查最新版本",
+		Long:  `输出KouSHare-dl的版本号，并检查最新版本`,
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println("KouShare-dl", version)
+			latestVersion, _ := net.LookupTXT("ks-version.gleamoe.com")
+			if latestVersion[0] != version {
+				fmt.Println("发现新版本：KouShare-dl", latestVersion[0])
+				fmt.Println("请访问 https://github.com/yliu7949/KouShare-dl/releases/latest 下载最新版本。")
+			} else {
+				fmt.Println("当前已是最新版本。")
+			}
+		},
+	}
+
 	var rootCmd = &cobra.Command{Use: "ks"}
-	rootCmd.AddCommand(cmdInfo, cmdSave, cmdRecord, cmdMerge, cmdSlide, cmdLogin, cmdLogout)
-	rootCmd.Version = "v0.7"
+	rootCmd.AddCommand(cmdInfo, cmdSave, cmdRecord, cmdMerge, cmdSlide, cmdLogin, cmdLogout, cmdVersion)
+	rootCmd.SetVersionTemplate(`{{printf "KouShare-dl %s\n" .Version}}`)
+	rootCmd.Version = version
 	_ = rootCmd.Execute()
 }

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -17,18 +18,21 @@ import (
 
 // Live 包含房间号、直播链接和直播状态等信息
 type Live struct {
-	lid      string
-	RoomID   string
-	isLive   string
-	title    string
-	date     string
-	m3u8URL  string
-	newTsURL string
-	SaveDir  string
+	lid            string
+	RoomID         string
+	isLive         string // 值为0表示直播未开始；值为1表示正在进行直播；值为2表示直播已结束；值为3表示录播视频已上线。
+	title          string
+	date           string
+	m3u8URL        string
+	newTsURL       string
+	quickReplayURL string // 快速回放地址
+	rtmpURL        string // 正式回放视频地址
+	playback       string // 值为0表示无回放；值为1表示有回放。
+	SaveDir        string
 }
 
 // WaitAndRecordTheLive 倒计时结束后开始录制直播
-func (l *Live) WaitAndRecordTheLive(liveTime string, chooseAutoMerge bool) {
+func (l *Live) WaitAndRecordTheLive(liveTime string, autoMerge bool) {
 	if liveTime != "" {
 		loc, _ := time.LoadLocation("Local")
 		parsedTime, err := time.ParseInLocation("2006-01-02 15:04:05", liveTime, loc)
@@ -50,42 +54,57 @@ func (l *Live) WaitAndRecordTheLive(liveTime string, chooseAutoMerge bool) {
 		time.Sleep(deltaTime)
 	}
 
-	l.getLidByRoomID()
-	l.checkLiveStatus()
-	if l.isLive != "1" {
-		fmt.Println("直播未按时开始或已结束。")
+	if !l.getLidByRoomID() {
 		return
 	}
+	l.checkLiveStatus()
 	l.getLiveByRoomID(true)
-	fmt.Println("运行录制程序...")
-	var url string
-	for {
-		l.getNewTsURLBym3u8()
-		if l.newTsURL != url {
-			url = l.newTsURL
-			fmt.Println(l.newTsURL[28:], "...")
-			if chooseAutoMerge {
-				l.downloadAndMergeTsFile()
-			} else {
-				l.downloadTsFile()
+	if l.isLive != "1" {
+		var msg string
+		switch l.isLive {
+		case "0":
+			msg = "直播尚未开始，距离开播还有一段时间。"
+		case "2":
+			msg = "直播已结束。"
+			if l.quickReplayURL != "" {
+				msg += fmt.Sprintf(`快速回放视频已上线，访问 %s 观看快速回放或使用“ks record %s --replay”命令下载快速回放视频。`,
+					`https://www.koushare.com/lives/room/`+l.RoomID, l.RoomID)
+			} else if l.playback == "0" {
+				msg += fmt.Sprintf("本场直播无回放。")
+			} else if l.playback == "1" {
+				msg += fmt.Sprintf("快速回放暂未上线。")
 			}
+		case "3":
+			msg = "正式回放视频已上线。"
+			if l.rtmpURL != "" {
+				vid := strings.Split(l.rtmpURL, "/")[len(strings.Split(l.rtmpURL, "/"))-1]
+				msg += fmt.Sprintf(`访问 %s 观看录播视频或使用“ks save %s”命令下载正式回放视频。`, l.rtmpURL, vid)
+			}
+		default:
+			msg = "直播未按时开始或已结束。"
 		}
-		time.Sleep(100 * time.Millisecond)
-		l.checkLiveStatus()
-		if l.isLive != "1" {
-			fmt.Println("录制结束.")
-			return
-		}
+		fmt.Println(msg)
+		return
 	}
+
+	fmt.Println("运行录制程序...")
+	l.recordLive(autoMerge)
+
+	fmt.Println("录制结束.")
 }
 
-func (l *Live) getLidByRoomID() {
+func (l *Live) getLidByRoomID() bool {
 	URL := "https://api.koushare.com/api/api-live/getLidByRoomid?roomid=" + l.RoomID
-	if str, err := user.MyGetRequest(URL); err != nil {
+	str, err := user.MyGetRequest(URL)
+	if err != nil {
 		fmt.Println("Get请求出错：", err)
-	} else {
-		l.lid = gjson.Get(str, "data").String()
+		return false
 	}
+	if l.lid = gjson.Get(str, "data").String(); l.lid == "" {
+		fmt.Println("直播间ID无效。")
+		return false
+	}
+	return true
 }
 
 func (l *Live) checkLiveStatus() {
@@ -111,6 +130,30 @@ func (l *Live) getLiveByRoomID(chooseHighQuality bool) {
 	} else {
 		l.m3u8URL = gjson.Get(str, "data.bqhlsurl").String()
 	}
+	l.quickReplayURL = gjson.Get(str, "data.lnoticeurl").String()
+	l.rtmpURL = gjson.Get(str, "data.rtmpurl").String()
+	l.playback = gjson.Get(str, "data.playback").String()
+}
+
+func (l *Live) recordLive(autoMerge bool) {
+	var url string
+	for {
+		l.getNewTsURLBym3u8()
+		if l.newTsURL != url {
+			url = l.newTsURL
+			fmt.Println(strings.Split(l.newTsURL[29:], ".")[0], "...")
+			if autoMerge {
+				l.downloadAndMergeTsFile()
+			} else {
+				l.downloadTsFile()
+			}
+		}
+		time.Sleep(100 * time.Millisecond)
+		l.checkLiveStatus()
+		if l.isLive != "1" {
+			return
+		}
+	}
 }
 
 func (l *Live) getNewTsURLBym3u8() {
@@ -120,7 +163,7 @@ func (l *Live) getNewTsURLBym3u8() {
 		return
 	}
 	lines := strings.Split(str, "\n")
-	l.newTsURL = "https://live.am-stc.cn/live/" + lines[len(lines)-2 : len(lines)-1][0]
+	l.newTsURL = "https://live.am-hpc.com/live/" + lines[len(lines)-2 : len(lines)-1][0]
 }
 
 func (l *Live) downloadTsFile() {
@@ -136,11 +179,12 @@ func (l *Live) downloadTsFile() {
 	req.Header.Set("Host", "live.am-stc.cn")
 	req.Header.Set("Origin", "https://www.koushare.com")
 	req.Header.Set("Referer", "https://www.koushare.com")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.105 Safari/537.36")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36")
 	resp, _ := http.DefaultClient.Do(req)
 	defer resp.Body.Close()
 
-	fileName := l.SaveDir + l.newTsURL[28:] + ".tmp"
+	name := strings.Split(l.newTsURL[29:], ".")[0]
+	fileName := l.SaveDir + name + ".tmp"
 	dstFile, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -151,8 +195,8 @@ func (l *Live) downloadTsFile() {
 		return
 	}
 	_ = dstFile.Close()
-	if err := os.Rename(fileName, l.SaveDir+l.newTsURL[28:]); err != nil {
-		fmt.Println(err)
+	if err = os.Rename(fileName, l.SaveDir+name+".ts"); err != nil {
+		fmt.Println(err.Error())
 		return
 	}
 }
@@ -170,11 +214,14 @@ func (l *Live) downloadAndMergeTsFile() {
 	req.Header.Set("Host", "live.am-stc.cn")
 	req.Header.Set("Origin", "https://www.koushare.com")
 	req.Header.Set("Referer", "https://www.koushare.com")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.105 Safari/537.36")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36")
 	resp, _ := http.DefaultClient.Do(req)
 	defer resp.Body.Close()
 
-	fileName := l.SaveDir + l.title + strings.Replace(l.date, ":", "_", -1) + ".ts"
+	// 过滤视频标题中的不合法字符
+	reg, _ := regexp.Compile(`[\\/:*?"<>|]`)
+	title := reg.ReplaceAllString(l.title, "")
+	fileName := l.SaveDir + fmt.Sprintf("%s_%s.ts", title, strings.Replace(l.date, ":", "_", -1))
 	dstFile, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		fmt.Println(err.Error())
