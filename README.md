@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/github/license/yliu7949/KouShare-dl.svg)](https://github.com/yliu7949/KouShare-dl/blob/master/LICENSE)
 [![Build Status](https://github.com/yliu7949/KouShare-dl/workflows/Go/badge.svg)](https://github.com/yliu7949/KouShare-dl/actions?query=workflow%3AGo)
 [![Go Report Card](https://goreportcard.com/badge/github.com/yliu7949/KouShare-dl)](https://goreportcard.com/report/github.com/yliu7949/KouShare-dl)
-[![Github All Releases](https://img.shields.io/github/downloads/yliu7949/KouShare-dl/total.svg)](https://github.com/yliu7949/KouShare-dl/releases/latest)
+[![Github Downloads](https://img.shields.io/github/downloads/yliu7949/KouShare-dl/total.svg)](http://gra.caldis.me/?url=https://github.com/yliu7949/KouShare-dl)
 <a title="Hits" target="_blank" href="https://github.com/yliu7949/KouShare-dl"><img src="https://hits.b3log.org/yliu7949/KouShare-dl.svg"></a>
 [![Github Release Version](https://img.shields.io/github/v/release/yliu7949/KouShare-dl?color=green&include_prereleases)](https://github.com/yliu7949/KouShare-dl/releases/latest)
 
