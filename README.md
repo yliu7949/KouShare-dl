@@ -103,7 +103,7 @@ cd C:\Users\lenovo\Downloads\
 ks version
 ```
 
-若出现`KouShare-dl v0.8.0`字样，则说明可以正常使用。接下来您可以继续输入 KouShare-dl 程序的命令来进行交互。比如，输入`ks help`并回车，您就可以看到 KouShare-dl 程序的帮助信息了。
+若出现`KouShare-dl v0.8.1`字样，则说明可以正常使用。接下来您可以继续输入 KouShare-dl 程序的命令来进行交互。比如，输入`ks help`并回车，您就可以看到 KouShare-dl 程序的帮助信息了。
 
 # 命令简介
 

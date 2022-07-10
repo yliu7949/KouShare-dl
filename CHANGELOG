@@ -1,3 +1,6 @@
+Sunday, 10 July 2022: Version 0.8.1
+        Allowed users to view the size of encrypted videos.
+
 Tuesday, 28 June 2022: Version 0.8.0
         Fixed the problem that the live broadcast could not be recorded due to the change of the URL of the .ts files.
         Added prompts for downloading quick replay and official replay videos.

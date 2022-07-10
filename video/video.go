@@ -34,8 +34,9 @@ type Video struct {
 	easyURL      string // 标清播放链接
 	standardURL  string // 高清播放链接
 	url          string // 超清播放链接
-	statusCode   string // 获取视频信息时返回的状态码，401即需要登陆；301即需要付费；200即请求成功（免费视频或已购买视频）；500即视频不存在
-	vrName       string // 视频类别，分为“付费视频”和“免费视频”两类，若为空则视为“免费视频”
+	vFiveURL     string // 加密播放链接，试看播放链接
+	statusCode   string // 获取视频信息时返回的状态码，401即需要登陆；301即需要付费；601即需要密码；200即请求成功（免费视频或已购买视频）；500即视频不存在
+	vrName       string // 视频类别，分为“付费视频”、“免费视频”和“加密视频”三类，若为空则视为“免费视频”
 	SaveDir      string
 	videoQuality string // 实际下载视频时的清晰度，分为“标清”、“高清”和“超清”三类
 	wg           sync.WaitGroup
@@ -61,7 +62,10 @@ func (v *Video) DownloadSingleVideo(quality string) {
 	}
 
 	var URL string
-	if v.vrName != "付费视频" && user.GetLoginState() != 1 {
+	if v.vrName == "加密视频" {
+		URL = v.vFiveURL
+		v.videoQuality = "高清"
+	} else if v.vrName != "付费视频" && user.GetLoginState() != 1 {
 		URL = v.easyURL
 		v.videoQuality = "标清"
 	} else {
@@ -212,6 +216,7 @@ func (v *Video) GetVideoInfo() bool {
 	v.easyURL = gjson.Get(str, "data.easyurl").String()
 	v.standardURL = gjson.Get(str, "data.standardurl").String()
 	v.url = gjson.Get(str, "data.url").String()
+	v.vFiveURL = gjson.Get(str, "data.vfiveurl").String()
 	v.vrName = gjson.Get(str, "data.vrname").String()
 	v.seriesName = gjson.Get(str, "data.svname").String()
 	v.videoTime = gjson.Get(str, "data.vtime").String()
@@ -305,6 +310,9 @@ func (v *Video) ShowVideoInfo() {
 			v.getVideoSize(v.easyURL)
 			v.videoQuality = " [标清]"
 		}
+	} else if v.statusCode == "601" {
+		v.getVideoSize(v.vFiveURL)
+		v.videoQuality = " [高清]"
 	} else {
 		v.videoQuality = " [未知]"
 	}
