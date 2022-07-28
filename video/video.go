@@ -170,10 +170,14 @@ func (v *Video) DownloadSeriesVideos(quality string) {
 		return
 	}
 
+	// 过滤系列名中的不合法字符，参考 https://github.com/yliu7949/KouShare-dl/issues/12
+	reg, _ := regexp.Compile(`[\\/:*?"<>|]`)
+	seriesName := reg.ReplaceAllString(v.seriesName, "")
+
 	if v.svpName != "" {
-		v.SaveDir += fmt.Sprintf("%s_%s_videos\\", v.seriesName, v.svpName)
+		v.SaveDir += fmt.Sprintf("%s_%s_videos\\", seriesName, reg.ReplaceAllString(v.svpName, ""))
 	} else {
-		v.SaveDir += fmt.Sprintf("%s_videos\\", v.seriesName)
+		v.SaveDir += fmt.Sprintf("%s_videos\\", seriesName)
 	}
 	if _, err := os.Stat(v.SaveDir); os.IsNotExist(err) {
 		if err := os.Mkdir(v.SaveDir, os.ModePerm); err != nil {

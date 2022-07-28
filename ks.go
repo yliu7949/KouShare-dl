@@ -162,7 +162,7 @@ func main() {
 		},
 	}
 
-	const version = "v0.8.1"
+	const version = "v0.8.2"
 	var cmdVersion = &cobra.Command{
 		Use:   "version",
 		Short: "输出版本号，并检查最新版本",
