@@ -16,6 +16,7 @@ import (
 func main() {
 	//defer profile.Start().Stop()
 	var v video.Video
+	var l live.Live
 	var (
 		path     string
 		isSeries bool
@@ -24,12 +25,17 @@ func main() {
 
 	var cmdInfo = &cobra.Command{
 		Use:   "info [vid]",
-		Short: "获取视频的基本信息",
-		Long:  `获取视频的基本信息，如讲者、拍摄日期、视频大小、视频摘要等内容.`,
+		Short: "获取视频或直播的基本信息",
+		Long:  `获取视频的基本信息，如讲者、拍摄日期、视频大小、视频摘要等内容；获取直播的基本信息，如开播时间、主办方、有无回放等内容.`,
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			v.Vid = args[0]
-			v.ShowVideoInfo()
+			if len(args[0]) == 6 {
+				l.RoomID = args[0]
+				l.ShowLiveInfo()
+			} else {
+				v.Vid = args[0]
+				v.ShowVideoInfo()
+			}
 		},
 	}
 	var cmdSave = &cobra.Command{
@@ -55,7 +61,6 @@ func main() {
 	cmdSave.Flags().BoolVarP(&isSeries, "series", "s", false, "指定是否下载系列视频")
 	cmdSave.Flags().StringVarP(&quality, "quality", "q", `high`, "指定下载视频的清晰度（high、standard或low）")
 
-	var l live.Live
 	var liveTime string //开播时间，格式应为"2006-01-02 15:04:05"
 	var autoMerge bool
 	var replay bool
@@ -162,7 +167,7 @@ func main() {
 		},
 	}
 
-	const version = "v0.8.2"
+	const version = "v0.8.3"
 	var cmdVersion = &cobra.Command{
 		Use:   "version",
 		Short: "输出版本号，并检查最新版本",

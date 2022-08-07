@@ -22,7 +22,11 @@ type Live struct {
 	RoomID         string
 	isLive         string // 值为0表示直播未开始；值为1表示正在进行直播；值为2表示直播已结束；值为3表示录播视频已上线。
 	title          string
-	date           string
+	date           string // 开播时间
+	sponsor        string // 主办单位
+	notice         string // 最新通知
+	clicks         string // 点击量
+	topicName      string // 专题/回放
 	m3u8URL        string
 	newTsURL       string
 	quickReplayURL string // 快速回放地址
@@ -123,8 +127,15 @@ func (l *Live) getLiveByRoomID(chooseHighQuality bool) {
 		fmt.Println("Get请求出错：", err)
 		return
 	}
+
 	l.title = gjson.Get(str, "data.ltitle").String()
 	l.date = gjson.Get(str, "data.livedate").String()
+	l.sponsor = gjson.Get(str, "data.lsponsor").String()
+	l.notice = gjson.Get(str, "data.lnotice").String()
+	l.clicks = gjson.Get(str, "data.lsize").String()
+	l.topicName = gjson.Get(str, "data.topicname").String()
+
+	l.isLive = gjson.Get(str, "data.islive").String()
 	if chooseHighQuality {
 		l.m3u8URL = gjson.Get(str, "data.hlsurl").String()
 	} else {
@@ -133,6 +144,40 @@ func (l *Live) getLiveByRoomID(chooseHighQuality bool) {
 	l.quickReplayURL = gjson.Get(str, "data.lnoticeurl").String()
 	l.rtmpURL = gjson.Get(str, "data.rtmpurl").String()
 	l.playback = gjson.Get(str, "data.playback").String()
+}
+
+func (l *Live) ShowLiveInfo() {
+	l.getLiveByRoomID(true)
+	var liveStatus string
+	switch l.isLive {
+	case "0":
+		liveStatus = "直播未开始"
+	case "1":
+		liveStatus = "正在直播中"
+	case "2":
+		liveStatus = "直播已结束"
+	case "3":
+		liveStatus = "录播已上线"
+	default:
+		liveStatus = "未知的状态"
+	}
+	if l.playback == "1" {
+		l.playback = "[有回放]"
+	} else {
+		l.playback = "[无回放]"
+	}
+	if l.topicName == "" {
+		l.topicName = "（无）"
+	}
+	if l.notice == "" {
+		l.notice = "（无）"
+	}
+
+	fmt.Printf("%s (roomID=%s):\n", l.title, l.RoomID)
+	fmt.Printf("\n\t直播状态：%-17s主办单位：%s\n", liveStatus, l.sponsor)
+	fmt.Printf("\t开播时间：%-22s有无回放：%s\n", l.date, l.playback)
+	fmt.Printf("\t浏览次数：%-22s专题：%s\n\n", l.clicks, l.topicName)
+	fmt.Printf("\t最新通知：%s\n", l.notice)
 }
 
 func (l *Live) recordLive(autoMerge bool) {
