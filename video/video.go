@@ -175,9 +175,9 @@ func (v *Video) DownloadSeriesVideos(quality string) {
 	seriesName := reg.ReplaceAllString(v.seriesName, "")
 
 	if v.svpName != "" {
-		v.SaveDir += fmt.Sprintf("%s_%s_videos\\", seriesName, reg.ReplaceAllString(v.svpName, ""))
+		v.SaveDir += fmt.Sprintf("%s_%s_videos/", seriesName, reg.ReplaceAllString(v.svpName, ""))
 	} else {
-		v.SaveDir += fmt.Sprintf("%s_videos\\", seriesName)
+		v.SaveDir += fmt.Sprintf("%s_videos/", seriesName)
 	}
 	if _, err := os.Stat(v.SaveDir); os.IsNotExist(err) {
 		if err := os.Mkdir(v.SaveDir, os.ModePerm); err != nil {

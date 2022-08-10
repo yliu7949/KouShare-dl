@@ -15,7 +15,7 @@
 KouShare-dl 是一个使用 [Cobra](https://github.com/spf13/cobra)
 开发的用于从 [“蔻享学术”](https://www.koushare.com/) 视频网站下载视频和课件的 CLI 工具。
 
-您可以在常见的操作系统（Windows，macOS 和 Linux 的各个发行版）里使用该命令行工具。该工具已被发布至公有领域，因此您可以按照您的想法自由使用它，如对它进行修改、重新发布等操作。
+您可以在常见的操作系统（Windows，macOS 和 Linux 等）里使用该命令行工具。该工具已被发布至公有领域，因此您可以按照您的想法自由使用它，如对它进行修改、重新发布等操作。
 
 # 目录
 
@@ -103,7 +103,7 @@ cd C:\Users\lenovo\Downloads\
 ks version
 ```
 
-若出现`KouShare-dl v0.8.3`字样，则说明可以正常使用。接下来您可以继续输入 KouShare-dl 程序的命令来进行交互。比如，输入`ks help`并回车，您就可以看到 KouShare-dl 程序的帮助信息了。
+若出现`KouShare-dl v0.8.4`字样，则说明可以正常使用。接下来您可以继续输入 KouShare-dl 程序的命令来进行交互。比如，输入`ks help`并回车，您就可以看到 KouShare-dl 程序的帮助信息了。
 
 # 命令简介
 

@@ -1,3 +1,6 @@
+Wednesday, 10 August 2022: Version 0.8.4
+        Fixed the bug that files were hidden when saving videos and slides with default parameter commands on Linux.
+
 Monday, 8 August 2022: Version 0.8.3
         Users can now use the "info" command to view live information.
 

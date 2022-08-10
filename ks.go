@@ -45,8 +45,8 @@ func main() {
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			v.Vid = args[0]
-			if path[len(path)-1:] != "\\" && path[len(path)-1:] != "/" {
-				path = path + "\\"
+			if path[len(path)-1:] != `\` && path[len(path)-1:] != "/" {
+				path = path + "/"
 			}
 			v.SaveDir = path
 			if isSeries {
@@ -57,7 +57,7 @@ func main() {
 		},
 		Aliases: []string{"video"},
 	}
-	cmdSave.Flags().StringVarP(&path, "path", "p", `.\`, "指定保存视频的路径")
+	cmdSave.Flags().StringVarP(&path, "path", "p", `.`, "指定保存视频的路径")
 	cmdSave.Flags().BoolVarP(&isSeries, "series", "s", false, "指定是否下载系列视频")
 	cmdSave.Flags().StringVarP(&quality, "quality", "q", `high`, "指定下载视频的清晰度（high、standard或low）")
 
@@ -73,8 +73,8 @@ func main() {
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			l.RoomID = args[0]
-			if path[len(path)-1:] != "\\" && path[len(path)-1:] != "/" {
-				path = path + "\\"
+			if path[len(path)-1:] != `\` && path[len(path)-1:] != "/" {
+				path = path + "/"
 			}
 			l.SaveDir = path
 			if !replay {
@@ -85,7 +85,7 @@ func main() {
 		},
 		Aliases: []string{"live"},
 	}
-	cmdRecord.Flags().StringVarP(&path, "path", "p", `.\`, "指定保存视频的路径")
+	cmdRecord.Flags().StringVarP(&path, "path", "p", `.`, "指定保存视频的路径")
 	cmdRecord.Flags().StringVarP(&liveTime, "at", "@", "", `开播时间，格式为"2006-01-02 15:04:05"`)
 	cmdRecord.Flags().BoolVarP(&autoMerge, "autoMerge", "a", false, "指定是否自动合并下载的视频片段文件")
 	cmdRecord.Flags().BoolVarP(&replay, "replay", "r", false, "指定是否下载直播间快速回放视频")
@@ -99,8 +99,8 @@ func main() {
 				path = "./"
 			} else {
 				path = args[0]
-				if path[len(path)-1:] != "\\" && path[len(path)-1:] != "/" {
-					path = path + "\\"
+				if path[len(path)-1:] != `\` && path[len(path)-1:] != "/" {
+					path = path + "/"
 				}
 			}
 			live.MergeTsFiles(path, dstFileName)
@@ -117,13 +117,13 @@ func main() {
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			s.Vid = args[0]
-			if path[len(path)-1:] != "\\" && path[len(path)-1:] != "/" {
-				path = path + "\\"
+			if path[len(path)-1:] != `\` && path[len(path)-1:] != "/" {
+				path = path + "/"
 			}
 			s.SaveDir = path
 			if qpdfBinPath != "" {
-				if qpdfBinPath[len(qpdfBinPath)-1:] != "\\" && qpdfBinPath[len(qpdfBinPath)-1:] != "/" {
-					qpdfBinPath = qpdfBinPath + "\\"
+				if qpdfBinPath[len(qpdfBinPath)-1:] != `\` && qpdfBinPath[len(qpdfBinPath)-1:] != "/" {
+					qpdfBinPath = qpdfBinPath + "/"
 				}
 			}
 			s.QpdfPath = qpdfBinPath
@@ -134,7 +134,7 @@ func main() {
 			}
 		},
 	}
-	cmdSlide.Flags().StringVarP(&path, "path", "p", `.\`, "指定保存课件的路径")
+	cmdSlide.Flags().StringVarP(&path, "path", "p", `.`, "指定保存课件的路径")
 	cmdSlide.Flags().BoolVarP(&isSeries, "series", "s", false, "指定是否下载整个系列的所有课件")
 	cmdSlide.Flags().StringVar(&qpdfBinPath, "qpdf-bin", "", "指定qpdf的bin文件夹所在的路径")
 
@@ -167,7 +167,7 @@ func main() {
 		},
 	}
 
-	const version = "v0.8.3"
+	const version = "v0.8.4"
 	var cmdVersion = &cobra.Command{
 		Use:   "version",
 		Short: "输出版本号，并检查最新版本",
