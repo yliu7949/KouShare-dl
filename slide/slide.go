@@ -59,9 +59,9 @@ func (s *Slide) DownloadSeriesSlides() {
 
 	s.findSeriesSlides()
 	if s.svpName != "" {
-		s.SaveDir += fmt.Sprintf("%s_%s_slides\\", s.seriesName, s.svpName)
+		s.SaveDir += fmt.Sprintf("%s_%s_slides/", s.seriesName, s.svpName)
 	} else {
-		s.SaveDir += fmt.Sprintf("%s_slides\\", s.seriesName)
+		s.SaveDir += fmt.Sprintf("%s_slides/", s.seriesName)
 	}
 	if _, err := os.Stat(s.SaveDir); os.IsNotExist(err) {
 		if err := os.Mkdir(s.SaveDir, os.ModePerm); err != nil {
@@ -75,7 +75,6 @@ func (s *Slide) DownloadSeriesSlides() {
 		if s.url = coursewareURL[1 : len(coursewareURL)-1]; len(s.url) == 0 {
 			continue
 		}
-		fmt.Println("比较：", tempName+`"`, "和", s.coursewareNames[i][1:])
 		if i >= 1 && tempName+`"` == s.coursewareNames[i][1:] { //若本次要下载的文件与上一次下载的文件相同，则跳过本次下载
 			continue
 		}
