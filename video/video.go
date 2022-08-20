@@ -19,15 +19,15 @@ import (
 // Video 包含视频号、标题、作者、日期等基本信息
 type Video struct {
 	Vid          string
-	svid         string // 系列id
-	svpid        string // 子系列id
-	svpName      string // 子系列名字
+	svid         string // 专题id
+	svpid        string // 子专题id
+	svpName      string // 子专题名字
 	title        string
 	author       string
 	affiliation  string
 	abstract     string
 	date         string
-	seriesName   string // 系列名字
+	seriesName   string // 专题名字
 	seriesVids   []string
 	videoTime    string // 视频时长
 	size         int64  // 视频体积
@@ -159,18 +159,18 @@ func (v *Video) DownloadSingleVideo(quality string) {
 	v.wg.Wait()
 }
 
-// DownloadSeriesVideos 下载指定清晰度的系列视频
+// DownloadSeriesVideos 下载指定清晰度的专题视频
 func (v *Video) DownloadSeriesVideos(quality string) {
 	if ok := v.GetVideoInfo(); !ok {
 		fmt.Println("获取视频信息失败。")
 		return
 	}
-	if v.svid == "0" || v.svid == "" { //判断是否是系列视频，若不是系列视频则仅下载该视频
+	if v.svid == "0" || v.svid == "" { //判断是否是专题视频，若不是专题视频则仅下载该视频
 		v.DownloadSingleVideo(quality)
 		return
 	}
 
-	// 过滤系列名中的不合法字符，参考 https://github.com/yliu7949/KouShare-dl/issues/12
+	// 过滤专题名中的不合法字符，参考 https://github.com/yliu7949/KouShare-dl/issues/12
 	reg, _ := regexp.Compile(`[\\/:*?"<>|]`)
 	seriesName := reg.ReplaceAllString(v.seriesName, "")
 
@@ -189,7 +189,7 @@ func (v *Video) DownloadSeriesVideos(quality string) {
 	v.findSeriesVideos()
 	seriesVids := v.seriesVids //此行须保留
 	for i, vid := range seriesVids {
-		fmt.Printf("正在下载 \"%s\"系列视频(%d/%d)\t", v.seriesName, i+1, len(seriesVids))
+		fmt.Printf("正在下载 \"%s\"专题视频(%d/%d)\t", v.seriesName, i+1, len(seriesVids))
 		v.Vid = vid
 		v.DownloadSingleVideo(quality)
 	}
@@ -333,18 +333,18 @@ func (v *Video) ShowVideoInfo() {
 	fmt.Printf("%s (vid=%s):\n", v.title, v.Vid)
 	fmt.Printf("\n\t时长：%-22s讲者：%s\n", v.videoTime+"min", v.author)
 	fmt.Printf("\t体积：%-20s单位：%s\n", strconv.Itoa(int(v.size/1024/1024))+"MB"+v.videoQuality, v.affiliation)
-	fmt.Printf("\t日期：%-22s系列：%s\n", v.date, v.seriesName)
+	fmt.Printf("\t日期：%-22s专题：%s\n", v.date, v.seriesName)
 	fmt.Printf("\t类别：%-18s分组：%s\n", v.vrName, v.svpName)
 	fmt.Printf("\n\t视频简介：%s\n\n", v.abstract)
 }
 
 func (v *Video) findSeriesVideos() {
-	if v.svid == "0" || v.svid == "" { //判断是否为系列视频
+	if v.svid == "0" || v.svid == "" { //判断是否为专题视频
 		return
 	}
 
 	var URL string
-	if v.svpid != "0" { //判断是否存在子系列视频
+	if v.svpid != "0" { //判断是否存在子专题视频
 		URL = "https://api.koushare.com/api/api-video/getAllVideoBySeriesSub?svpid=" + v.svpid
 	} else {
 		URL = "https://api.koushare.com/api/api-video/getSeriesVideo?svid=" + v.svid

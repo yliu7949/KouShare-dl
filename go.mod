@@ -1,10 +1,10 @@
 module github.com/yliu7949/KouShare-dl
 
-go 1.18
+go 1.19
 
 require (
 	github.com/spf13/cobra v1.5.0
-	github.com/tidwall/gjson v1.14.2
+	github.com/tidwall/gjson v1.14.3
 )
 
 require (
