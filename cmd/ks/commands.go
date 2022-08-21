@@ -13,6 +13,7 @@ import (
 
 var path string
 
+// InfoCmd 获取视频或直播的基本信息
 func InfoCmd() *cobra.Command {
 	var v video.Video
 	var l live.Live
@@ -35,6 +36,7 @@ func InfoCmd() *cobra.Command {
 	return cmdInfo
 }
 
+// SaveCmd 保存指定vid的视频
 func SaveCmd() *cobra.Command {
 	var v video.Video
 	var quality string
@@ -65,6 +67,7 @@ func SaveCmd() *cobra.Command {
 	return cmdSave
 }
 
+// RecordCmd 录制指定直播间ID的直播
 func RecordCmd() *cobra.Command {
 	var l live.Live
 	var liveTime string //开播时间，格式应为"2006-01-02 15:04:05"
@@ -98,6 +101,7 @@ func RecordCmd() *cobra.Command {
 	return cmdRecord
 }
 
+// MergeCmd 合并下载的视频片段文件
 func MergeCmd() *cobra.Command {
 	var dstFileName string
 	var cmdMerge = &cobra.Command{
@@ -122,6 +126,7 @@ func MergeCmd() *cobra.Command {
 	return cmdMerge
 }
 
+// SlideCmd 下载指定vid的视频对应的课件
 func SlideCmd() *cobra.Command {
 	var s slide.Slide
 	var isSeries bool
@@ -157,6 +162,7 @@ func SlideCmd() *cobra.Command {
 	return cmdSlide
 }
 
+// LoginCmd 通过短信验证码获取“蔻享学术”登陆凭证
 func LoginCmd() *cobra.Command {
 	var u user.User
 	var cmdLogin = &cobra.Command{
@@ -181,6 +187,7 @@ func LoginCmd() *cobra.Command {
 	return cmdLogin
 }
 
+// LogoutCmd 退出登录并删除保存在本地的登陆凭证文件
 func LogoutCmd() *cobra.Command {
 	var u user.User
 	var cmdLogout = &cobra.Command{

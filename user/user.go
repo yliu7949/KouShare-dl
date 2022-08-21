@@ -2,7 +2,7 @@ package user
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -42,7 +42,7 @@ func (u *User) LoadToken() {
 			fmt.Println(err)
 			return
 		}
-		text := strings.Split(fmt.Sprintf("%s", f), " ")
+		text := strings.Split(string(f), " ")
 
 		// 若token过期，则需要重新登陆获取token
 		if t, _ := strconv.Atoi(text[1]); time.Now().Unix()-int64(t) > 604800 {
@@ -65,12 +65,12 @@ func (u *User) Login() error {
 	if err != nil {
 		return err
 	}
-	body, err := ioutil.ReadAll(res1.Body)
+	body, err := io.ReadAll(res1.Body)
 	res1.Body.Close()
 	if err != nil {
 		return err
 	}
-	if res1.StatusCode == 200 && gjson.Get(fmt.Sprintf("%s", body), "code").String() == "200" {
+	if res1.StatusCode == 200 && gjson.Get(string(body), "code").String() == "200" {
 		fmt.Printf("短信验证码发送成功，请输入6位验证码：")
 		var verifyCode string
 		_, err = fmt.Scan(&verifyCode)
@@ -82,12 +82,12 @@ func (u *User) Login() error {
 		if err != nil {
 			return err
 		}
-		body, err = ioutil.ReadAll(res2.Body)
+		body, err = io.ReadAll(res2.Body)
 		res2.Body.Close()
 		if err != nil {
 			return err
 		}
-		if res2.StatusCode == 200 && gjson.Get(fmt.Sprintf("%s", body), "code").String() == "200" {
+		if res2.StatusCode == 200 && gjson.Get(string(body), "code").String() == "200" {
 			fmt.Println("登陆成功。")
 			if len(res2.Cookies()) == 1 {
 				cookie := *(res2.Cookies()[0])
@@ -101,7 +101,7 @@ func (u *User) Login() error {
 			}
 		}
 	} else {
-		fmt.Println(gjson.Get(fmt.Sprintf("%s", body), "msg").String())
+		fmt.Println(gjson.Get(string(body), "msg").String())
 	}
 	return nil
 }
@@ -168,11 +168,13 @@ func MyGetRequest(url string, headers ...map[string]string) (string, error) {
 	}
 
 	resp, _ := http.DefaultClient.Do(req)
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s", data), nil
+	return string(data), nil
 }

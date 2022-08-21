@@ -3,6 +3,7 @@ package video
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/tidwall/gjson"
+	"github.com/yliu7949/KouShare-dl/internal/color"
 	"github.com/yliu7949/KouShare-dl/user"
 )
 
@@ -53,11 +55,11 @@ func (v *Video) DownloadSingleVideo(quality string) {
 
 	if v.statusCode == "401" {
 		fmt.Printf("%s\tvid=%s\n", v.title, v.Vid)
-		fmt.Print(" [>>>>>>>>>>>>该视频需登陆，自动取消下载>>>>>>>>>>>>]\n\n")
+		fmt.Print(" [>>>>>>>>>>> " + color.Error("该视频需登陆，自动取消下载") + " >>>>>>>>>>>]\n\n")
 		return
 	} else if v.statusCode == "301" {
 		fmt.Printf("%s\tvid=%s\n", v.title, v.Vid)
-		fmt.Print(" [>>>>>>>>>>>>该视频需付费，自动取消下载>>>>>>>>>>>>]\n\n")
+		fmt.Print(" [>>>>>>>>>>> " + color.Error("该视频需付费，自动取消下载") + " >>>>>>>>>>>]\n\n")
 		return
 	}
 
@@ -98,7 +100,7 @@ func (v *Video) DownloadSingleVideo(quality string) {
 	//若mp4文件已存在，说明该视频已下载完成。自动跳过该视频的下载。
 	if _, err := os.Stat(v.SaveDir + title + "_" + v.videoQuality + ".mp4"); err == nil {
 		fmt.Printf("%s\tvid=%s\t%s\n", v.title, v.Vid, v.videoQuality)
-		fmt.Print(" [>>>>>>>>>>>>该视频已下载，自动跳过下载>>>>>>>>>>>>]\n\n")
+		fmt.Print(" [>>>>>>>>>>> " + color.Done("该视频已下载，自动跳过下载") + " >>>>>>>>>>>]\n\n")
 		return
 	}
 
@@ -111,7 +113,7 @@ func (v *Video) DownloadSingleVideo(quality string) {
 				fmt.Println(err)
 			}
 			fmt.Printf("%s\tvid=%s\t%s\n", v.title, v.Vid, v.videoQuality)
-			fmt.Print(" [>>>>>>>>>>>>该视频已下载，自动跳过下载>>>>>>>>>>>>]\n\n")
+			fmt.Print(" [>>>>>>>>>>> " + color.Done("该视频已下载，自动跳过下载") + " >>>>>>>>>>>]\n\n")
 			return
 		}
 		firstByte = int(tmpFileSize)
@@ -132,7 +134,12 @@ func (v *Video) DownloadSingleVideo(quality string) {
 	req.Header.Set("Referer", v.url)
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36")
 	resp, _ := http.DefaultClient.Do(req)
-	defer resp.Body.Close()
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	if _, err := os.Stat(v.SaveDir); os.IsNotExist(err) {
 		if err := os.Mkdir(v.SaveDir, os.ModePerm); err != nil {
@@ -270,6 +277,8 @@ func (v *Video) getVideoSize(URL string) {
 func (v *Video) showBar() {
 	fmt.Printf("%s\tvid=%s\t%s\n", v.title, v.Vid, v.videoQuality)
 	var saveRateGraph string
+	var startTime = time.Now()
+	var startSize = v.checkTmpFileSize()
 	for {
 		if v.checkTmpFileSize() < v.size && v.size != 0 { //若相等则意味着该视频已下载完毕
 			saveRateGraph = ""
@@ -277,10 +286,12 @@ func (v *Video) showBar() {
 			for i := 0; i < int(rate/2); i++ {
 				saveRateGraph += ">"
 			}
-			fmt.Printf("\r [%-50s]%3d%%  %8d/%d  ", saveRateGraph, rate, v.checkTmpFileSize(), v.size)
+			speed := float64((v.checkTmpFileSize()-startSize)/1024/1024) / time.Since(startTime).Seconds()
+			fmt.Printf("\r [%-50s]%s  %4dMB/%dMB   %-9s  ", saveRateGraph, color.Highlight(fmt.Sprintf("  %2d%%", rate)),
+				v.checkTmpFileSize()/1024/1024, v.size/1024/1024, color.Emphasize(fmt.Sprintf("%.1fMB/s", speed)))
 			time.Sleep(100 * time.Millisecond)
 		} else {
-			fmt.Printf("\r [%-50s]%3d%%  %8d/%d\n\n", saveRateGraph+">", 100, v.checkTmpFileSize(), v.size)
+			fmt.Printf("\r [%-50s]%s  %4dMB/%dMB\n\n", strings.Repeat(">", 50), color.Done(" 100%"), v.checkTmpFileSize()/1024/1024, v.size/1024/1024)
 			//将下载完成的tmp文件重命名为mp4文件
 			err := os.Rename(v.SaveDir+title+"_"+v.videoQuality+".tmp", v.SaveDir+title+"_"+v.videoQuality+".mp4")
 			if err != nil {

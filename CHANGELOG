@@ -1,3 +1,9 @@
+Sunday, 21 August 2022: Version 0.8.5
+        Adjusted the project layout.
+        Changed the Golang version from 1.18 to 1.19.
+        Added "--nocolor" flag for disabling colorful output.
+        Download speed can be displayed when downloading videos.
+
 Wednesday, 10 August 2022: Version 0.8.4
         Fixed the bug that files were hidden when saving videos and slides with default parameter commands on Linux.
 

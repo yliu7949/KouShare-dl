@@ -1,5 +1,5 @@
 <p align="center">
-  <img width="240" src="./logo.png" style="text-align: center;">
+  <img width="240" src="./logo.png" style="text-align: center;" alt="KouShare-dl logo">
 </p>
 
 # KouShare-dl
@@ -132,15 +132,16 @@ KouShare-dl 程序的命令具有下面的格式：
 可使用的 flag 参数：
 
 ```shell
-  -@, --at         指定时间，格式为"2006-01-02 15:04:05"
-  -a, --autoMerge  指定是否自动合并下载的视频片段文件
-  -h, --help       查看帮助信息
-  -n, --name       指定输出文件的名字
-  -p, --path       指定保存文件的路径（若不指定，则默认为该程序当前所在的路径）
-  -q, --quality    指定下载视频的清晰度（high为超清，standard为高清，low为标清，不指定则默认为超清）
-      --qpdf-bin   指定qpdf的bin文件夹所在的路径（注：该flag无简写形式）
-  -r, --replay     指定是否下载直播间快速回放视频
-  -s, --series     指定是否下载整个专题的文件
+  -@, --at          指定时间，格式为"2006-01-02 15:04:05"
+  -a, --autoMerge   指定是否自动合并下载的视频片段文件
+  -h, --help        查看帮助信息
+  -n, --name        指定输出文件的名字
+  -p, --path        指定保存文件的路径（若不指定，则默认为该程序当前所在的路径）
+  -q, --quality     指定下载视频的清晰度（high为超清，standard为高清，low为标清，不指定则默认为超清）
+      --qpdf-bin    指定qpdf的bin文件夹所在的路径（注：该flag无简写形式）
+  -r, --replay      指定是否下载直播间快速回放视频
+  -s, --series      指定是否下载整个专题的文件
+      --nocolor     指定是否不使用彩色输出
   -v, --version    查看版本号
 ```
 
