@@ -14,14 +14,14 @@ import (
 // Slide 包含视频号、课件下载链接等基本信息
 type Slide struct {
 	Vid             string
-	svid            string   //系列id
-	seriesName      string   //系列名字
-	svpid           string   //子系列id
-	svpName         string   //子系列名字
+	svid            string   //专题id
+	seriesName      string   //专题名字
+	svpid           string   //子专题id
+	svpName         string   //子专题名字
 	name            string   //单个课件的文件名
 	url             string   //单个课件的下载链接
-	coursewareNames []string //该系列视频中所有课件的文件名
-	coursewareURLs  []string //该系列视频中所有课件的下载链接
+	coursewareNames []string //该专题视频中所有课件的文件名
+	coursewareURLs  []string //该专题视频中所有课件的下载链接
 	QpdfPath        string   //qpdf的bin路径
 	SaveDir         string
 }
@@ -46,13 +46,13 @@ func (s *Slide) DownloadSingleSlide() {
 	s.saveFile()
 }
 
-// DownloadSeriesSlides 下载系列视频中的所有课件
+// DownloadSeriesSlides 下载专题视频中的所有课件
 func (s *Slide) DownloadSeriesSlides() {
 	if ok := s.getSlideInfo(); !ok {
 		fmt.Println("获取课件信息失败。")
 		return
 	}
-	if s.svid == "0" || s.svid == "" { //判断是否是系列视频，若不是系列视频则仅下载该课件
+	if s.svid == "0" || s.svid == "" { //判断是否是专题视频，若不是专题视频则仅下载该课件
 		s.DownloadSingleSlide()
 		return
 	}
@@ -78,7 +78,7 @@ func (s *Slide) DownloadSeriesSlides() {
 		if i >= 1 && tempName+`"` == s.coursewareNames[i][1:] { //若本次要下载的文件与上一次下载的文件相同，则跳过本次下载
 			continue
 		}
-		fmt.Printf("正在下载 \"%s\"系列课件(%d/%d)\t", s.seriesName, i+1, len(s.coursewareURLs))
+		fmt.Printf("正在下载 \"%s\"专题课件(%d/%d)\t", s.seriesName, i+1, len(s.coursewareURLs))
 		s.name = s.coursewareNames[i]
 		s.name = s.name[1 : len(s.name)-1]
 		tempName = s.name
@@ -108,12 +108,12 @@ func (s *Slide) getSlideInfo() bool {
 }
 
 func (s *Slide) findSeriesSlides() {
-	if s.svid == "0" || s.svid == "" { //判断是否为系列视频
+	if s.svid == "0" || s.svid == "" { //判断是否为专题视频
 		return
 	}
 
 	var URL string
-	if s.svpid != "0" { //判断是否存在子系列视频
+	if s.svpid != "0" { //判断是否存在子专题视频
 		URL = "https://api.koushare.com/api/api-video/getAllVideoBySeriesSub?svpid=" + s.svpid
 	} else {
 		URL = "https://api.koushare.com/api/api-video/getSeriesVideo?svid=" + s.svid

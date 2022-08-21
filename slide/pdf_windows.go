@@ -67,7 +67,7 @@ func optimizePDF(fileName string) {
 	}
 }
 
-//获取解压后的pdf文件中的obj列表
+// 获取解压后的pdf文件中的obj列表
 func getObjectSlice(fileName string) (objectSlice []string) {
 	cmd := exec.Command(qpdfBinPath+"qpdf.exe", "--show-pages", fileName)
 	if runtime.GOOS == "windows" {

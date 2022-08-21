@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -74,9 +74,9 @@ func (l *Live) WaitAndRecordTheLive(liveTime string, autoMerge bool) {
 				msg += fmt.Sprintf(`快速回放视频已上线，访问 %s 观看快速回放或使用“ks record %s --replay”命令下载快速回放视频。`,
 					`https://www.koushare.com/lives/room/`+l.RoomID, l.RoomID)
 			} else if l.playback == "0" {
-				msg += fmt.Sprintf("本场直播无回放。")
+				msg += "本场直播无回放。"
 			} else if l.playback == "1" {
-				msg += fmt.Sprintf("快速回放暂未上线。")
+				msg += "快速回放暂未上线。"
 			}
 		case "3":
 			msg = "正式回放视频已上线。"
@@ -146,6 +146,7 @@ func (l *Live) getLiveByRoomID(chooseHighQuality bool) {
 	l.playback = gjson.Get(str, "data.playback").String()
 }
 
+// ShowLiveInfo 按照格式输出直播的基本信息
 func (l *Live) ShowLiveInfo() {
 	l.getLiveByRoomID(true)
 	var liveStatus string
@@ -226,7 +227,12 @@ func (l *Live) downloadTsFile() {
 	req.Header.Set("Referer", "https://www.koushare.com")
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36")
 	resp, _ := http.DefaultClient.Do(req)
-	defer resp.Body.Close()
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	name := strings.Split(l.newTsURL[29:], ".")[0]
 	fileName := l.SaveDir + name + ".tmp"
@@ -261,7 +267,12 @@ func (l *Live) downloadAndMergeTsFile() {
 	req.Header.Set("Referer", "https://www.koushare.com")
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36")
 	resp, _ := http.DefaultClient.Do(req)
-	defer resp.Body.Close()
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	// 过滤视频标题中的不合法字符
 	reg, _ := regexp.Compile(`[\\/:*?"<>|]`)
@@ -311,7 +322,7 @@ func MergeTsFiles(dir string, dstFileName string) {
 	}
 	write := bufio.NewWriter(dstFile)
 	for _, tsFile := range tsFiles {
-		fileByte, err := ioutil.ReadFile(tsFile)
+		fileByte, err := os.ReadFile(tsFile)
 		if err != nil {
 			fmt.Println(err.Error())
 			return
@@ -324,6 +335,6 @@ func MergeTsFiles(dir string, dstFileName string) {
 		_ = write.Flush()
 		_ = os.Remove(tsFile)
 	}
-	dstFile.Close()
+	_ = dstFile.Close()
 	fmt.Println("合并完成.")
 }

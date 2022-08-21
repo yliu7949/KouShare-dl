@@ -3,6 +3,7 @@ package video
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -13,21 +14,22 @@ import (
 	"time"
 
 	"github.com/tidwall/gjson"
+	"github.com/yliu7949/KouShare-dl/internal/color"
 	"github.com/yliu7949/KouShare-dl/user"
 )
 
 // Video 包含视频号、标题、作者、日期等基本信息
 type Video struct {
 	Vid          string
-	svid         string // 系列id
-	svpid        string // 子系列id
-	svpName      string // 子系列名字
+	svid         string // 专题id
+	svpid        string // 子专题id
+	svpName      string // 子专题名字
 	title        string
 	author       string
 	affiliation  string
 	abstract     string
 	date         string
-	seriesName   string // 系列名字
+	seriesName   string // 专题名字
 	seriesVids   []string
 	videoTime    string // 视频时长
 	size         int64  // 视频体积
@@ -53,11 +55,11 @@ func (v *Video) DownloadSingleVideo(quality string) {
 
 	if v.statusCode == "401" {
 		fmt.Printf("%s\tvid=%s\n", v.title, v.Vid)
-		fmt.Print(" [>>>>>>>>>>>>该视频需登陆，自动取消下载>>>>>>>>>>>>]\n\n")
+		fmt.Print(" [>>>>>>>>>>> " + color.Error("该视频需登陆，自动取消下载") + " >>>>>>>>>>>]\n\n")
 		return
 	} else if v.statusCode == "301" {
 		fmt.Printf("%s\tvid=%s\n", v.title, v.Vid)
-		fmt.Print(" [>>>>>>>>>>>>该视频需付费，自动取消下载>>>>>>>>>>>>]\n\n")
+		fmt.Print(" [>>>>>>>>>>> " + color.Error("该视频需付费，自动取消下载") + " >>>>>>>>>>>]\n\n")
 		return
 	}
 
@@ -98,7 +100,7 @@ func (v *Video) DownloadSingleVideo(quality string) {
 	//若mp4文件已存在，说明该视频已下载完成。自动跳过该视频的下载。
 	if _, err := os.Stat(v.SaveDir + title + "_" + v.videoQuality + ".mp4"); err == nil {
 		fmt.Printf("%s\tvid=%s\t%s\n", v.title, v.Vid, v.videoQuality)
-		fmt.Print(" [>>>>>>>>>>>>该视频已下载，自动跳过下载>>>>>>>>>>>>]\n\n")
+		fmt.Print(" [>>>>>>>>>>> " + color.Done("该视频已下载，自动跳过下载") + " >>>>>>>>>>>]\n\n")
 		return
 	}
 
@@ -111,7 +113,7 @@ func (v *Video) DownloadSingleVideo(quality string) {
 				fmt.Println(err)
 			}
 			fmt.Printf("%s\tvid=%s\t%s\n", v.title, v.Vid, v.videoQuality)
-			fmt.Print(" [>>>>>>>>>>>>该视频已下载，自动跳过下载>>>>>>>>>>>>]\n\n")
+			fmt.Print(" [>>>>>>>>>>> " + color.Done("该视频已下载，自动跳过下载") + " >>>>>>>>>>>]\n\n")
 			return
 		}
 		firstByte = int(tmpFileSize)
@@ -132,7 +134,12 @@ func (v *Video) DownloadSingleVideo(quality string) {
 	req.Header.Set("Referer", v.url)
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36")
 	resp, _ := http.DefaultClient.Do(req)
-	defer resp.Body.Close()
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	if _, err := os.Stat(v.SaveDir); os.IsNotExist(err) {
 		if err := os.Mkdir(v.SaveDir, os.ModePerm); err != nil {
@@ -159,18 +166,18 @@ func (v *Video) DownloadSingleVideo(quality string) {
 	v.wg.Wait()
 }
 
-// DownloadSeriesVideos 下载指定清晰度的系列视频
+// DownloadSeriesVideos 下载指定清晰度的专题视频
 func (v *Video) DownloadSeriesVideos(quality string) {
 	if ok := v.GetVideoInfo(); !ok {
 		fmt.Println("获取视频信息失败。")
 		return
 	}
-	if v.svid == "0" || v.svid == "" { //判断是否是系列视频，若不是系列视频则仅下载该视频
+	if v.svid == "0" || v.svid == "" { //判断是否是专题视频，若不是专题视频则仅下载该视频
 		v.DownloadSingleVideo(quality)
 		return
 	}
 
-	// 过滤系列名中的不合法字符，参考 https://github.com/yliu7949/KouShare-dl/issues/12
+	// 过滤专题名中的不合法字符，参考 https://github.com/yliu7949/KouShare-dl/issues/12
 	reg, _ := regexp.Compile(`[\\/:*?"<>|]`)
 	seriesName := reg.ReplaceAllString(v.seriesName, "")
 
@@ -189,7 +196,7 @@ func (v *Video) DownloadSeriesVideos(quality string) {
 	v.findSeriesVideos()
 	seriesVids := v.seriesVids //此行须保留
 	for i, vid := range seriesVids {
-		fmt.Printf("正在下载 \"%s\"系列视频(%d/%d)\t", v.seriesName, i+1, len(seriesVids))
+		fmt.Printf("正在下载 \"%s\"专题视频(%d/%d)\t", v.seriesName, i+1, len(seriesVids))
 		v.Vid = vid
 		v.DownloadSingleVideo(quality)
 	}
@@ -270,6 +277,8 @@ func (v *Video) getVideoSize(URL string) {
 func (v *Video) showBar() {
 	fmt.Printf("%s\tvid=%s\t%s\n", v.title, v.Vid, v.videoQuality)
 	var saveRateGraph string
+	var startTime = time.Now()
+	var startSize = v.checkTmpFileSize()
 	for {
 		if v.checkTmpFileSize() < v.size && v.size != 0 { //若相等则意味着该视频已下载完毕
 			saveRateGraph = ""
@@ -277,10 +286,12 @@ func (v *Video) showBar() {
 			for i := 0; i < int(rate/2); i++ {
 				saveRateGraph += ">"
 			}
-			fmt.Printf("\r [%-50s]%3d%%  %8d/%d  ", saveRateGraph, rate, v.checkTmpFileSize(), v.size)
+			speed := float64((v.checkTmpFileSize()-startSize)/1024/1024) / time.Since(startTime).Seconds()
+			fmt.Printf("\r [%-50s]%s  %4dMB/%dMB   %-9s  ", saveRateGraph, color.Highlight(fmt.Sprintf("  %2d%%", rate)),
+				v.checkTmpFileSize()/1024/1024, v.size/1024/1024, color.Emphasize(fmt.Sprintf("%.1fMB/s", speed)))
 			time.Sleep(100 * time.Millisecond)
 		} else {
-			fmt.Printf("\r [%-50s]%3d%%  %8d/%d\n\n", saveRateGraph+">", 100, v.checkTmpFileSize(), v.size)
+			fmt.Printf("\r [%-50s]%s  %4dMB/%dMB\n\n", strings.Repeat(">", 50), color.Done(" 100%"), v.checkTmpFileSize()/1024/1024, v.size/1024/1024)
 			//将下载完成的tmp文件重命名为mp4文件
 			err := os.Rename(v.SaveDir+title+"_"+v.videoQuality+".tmp", v.SaveDir+title+"_"+v.videoQuality+".mp4")
 			if err != nil {
@@ -333,18 +344,18 @@ func (v *Video) ShowVideoInfo() {
 	fmt.Printf("%s (vid=%s):\n", v.title, v.Vid)
 	fmt.Printf("\n\t时长：%-22s讲者：%s\n", v.videoTime+"min", v.author)
 	fmt.Printf("\t体积：%-20s单位：%s\n", strconv.Itoa(int(v.size/1024/1024))+"MB"+v.videoQuality, v.affiliation)
-	fmt.Printf("\t日期：%-22s系列：%s\n", v.date, v.seriesName)
+	fmt.Printf("\t日期：%-22s专题：%s\n", v.date, v.seriesName)
 	fmt.Printf("\t类别：%-18s分组：%s\n", v.vrName, v.svpName)
 	fmt.Printf("\n\t视频简介：%s\n\n", v.abstract)
 }
 
 func (v *Video) findSeriesVideos() {
-	if v.svid == "0" || v.svid == "" { //判断是否为系列视频
+	if v.svid == "0" || v.svid == "" { //判断是否为专题视频
 		return
 	}
 
 	var URL string
-	if v.svpid != "0" { //判断是否存在子系列视频
+	if v.svpid != "0" { //判断是否存在子专题视频
 		URL = "https://api.koushare.com/api/api-video/getAllVideoBySeriesSub?svpid=" + v.svpid
 	} else {
 		URL = "https://api.koushare.com/api/api-video/getSeriesVideo?svid=" + v.svid
