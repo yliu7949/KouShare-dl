@@ -288,11 +288,12 @@ func (v *Video) showBar() {
 				saveRateGraph += ">"
 			}
 			speed := float64((v.checkTmpFileSize()-startSize)/1024/1024) / time.Since(startTime).Seconds()
-			fmt.Printf("\r [%-50s]%s  %4dMB/%dMB   %-9s  ", saveRateGraph, color.Highlight(fmt.Sprintf("  %2d%%", rate)),
-				v.checkTmpFileSize()/1024/1024, v.size/1024/1024, color.Emphasize(fmt.Sprintf("%.1fMB/s", speed)))
+			fmt.Printf("\r [%-50s]%s  %6.2fMB/%.2fMB   %-9s  ", saveRateGraph, color.Highlight(fmt.Sprintf("  %2d%%", rate)),
+				float64(v.checkTmpFileSize())/1024/1024, float64(v.size)/1024/1024, color.Emphasize(fmt.Sprintf("%.1fMB/s", speed)))
 			time.Sleep(100 * time.Millisecond)
 		} else {
-			fmt.Printf("\r [%-50s]%s  %4dMB/%dMB\n\n", strings.Repeat(">", 50), color.Done(" 100%"), v.checkTmpFileSize()/1024/1024, v.size/1024/1024)
+			fmt.Printf("\r [%-50s]%s  %6.2fMB/%.2fMB\n\n", strings.Repeat(">", 50), color.Done(" 100%"),
+				float64(v.checkTmpFileSize())/1024/1024, float64(v.size)/1024/1024)
 			//将下载完成的tmp文件重命名为mp4文件
 			err := os.Rename(v.SaveDir+title+"_"+v.videoQuality+".tmp", v.SaveDir+title+"_"+v.videoQuality+".mp4")
 			if err != nil {
