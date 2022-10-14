@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/tidwall/gjson"
+	"github.com/yliu7949/KouShare-dl/internal/proxy"
 )
 
 // User 用户，包含手机号码、依据token文件判断的登陆状态和token的值
@@ -61,7 +62,7 @@ func (u *User) LoadToken() {
 // Login 使用短信验证码的方式登陆“蔻享学术”平台，登陆成功后获得token，并将token保存在当前路径下的token文件中
 func (u *User) Login() error {
 	URL := "https://login.koushare.com/api/api-user/"
-	res1, err := http.PostForm(URL+"sendSms", url.Values{"phone": {u.PhoneNumber}, "scope": {"LOGIN"}})
+	res1, err := proxy.Client.PostForm(URL+"sendSms", url.Values{"phone": {u.PhoneNumber}, "scope": {"LOGIN"}})
 	if err != nil {
 		return err
 	}
@@ -78,7 +79,7 @@ func (u *User) Login() error {
 			return err
 		}
 
-		res2, err := http.PostForm(URL+"smsLogin", url.Values{"phone": {u.PhoneNumber}, "key": {verifyCode}, "rm": {"1"}})
+		res2, err := proxy.Client.PostForm(URL+"smsLogin", url.Values{"phone": {u.PhoneNumber}, "key": {verifyCode}, "rm": {"1"}})
 		if err != nil {
 			return err
 		}
@@ -167,7 +168,7 @@ func MyGetRequest(url string, headers ...map[string]string) (string, error) {
 		}
 	}
 
-	resp, _ := http.DefaultClient.Do(req)
+	resp, _ := proxy.Client.Do(req)
 	defer func(Body io.ReadCloser) {
 		_ = Body.Close()
 	}(resp.Body)

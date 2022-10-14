@@ -8,17 +8,20 @@ import (
 	"github.com/spf13/cobra"
 	ks "github.com/yliu7949/KouShare-dl/cmd/ks"
 	"github.com/yliu7949/KouShare-dl/internal/color"
+	"github.com/yliu7949/KouShare-dl/internal/proxy"
 )
 
-const version = "v0.8.5"
+const version = "v0.9.0"
 
 func main() {
 	//defer profile.Start().Stop()
 	var noColor bool
+	var proxyURL string
 	var rootCmd = &cobra.Command{
 		Use: "ks",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			color.DisableColor(noColor)
+			proxy.EnableProxy(proxyURL)
 		},
 	}
 	rootCmd.AddCommand(ks.InfoCmd(), ks.SaveCmd(), ks.RecordCmd(), ks.MergeCmd(), ks.SlideCmd(), ks.LoginCmd(), ks.LogoutCmd(), VersionCmd())
@@ -26,6 +29,7 @@ func main() {
 	rootCmd.Version = version
 
 	rootCmd.PersistentFlags().BoolVar(&noColor, "nocolor", false, "指定是否不使用彩色输出")
+	rootCmd.PersistentFlags().StringVarP(&proxyURL, "proxy", "P", "", "指定使用的http/https/socks5代理服务地址")
 	_ = rootCmd.Execute()
 }
 

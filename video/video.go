@@ -15,6 +15,7 @@ import (
 
 	"github.com/tidwall/gjson"
 	"github.com/yliu7949/KouShare-dl/internal/color"
+	"github.com/yliu7949/KouShare-dl/internal/proxy"
 	"github.com/yliu7949/KouShare-dl/user"
 )
 
@@ -133,7 +134,7 @@ func (v *Video) DownloadSingleVideo(quality string) {
 	req.Header.Set("Range", "bytes="+strconv.Itoa(firstByte)+"-")
 	req.Header.Set("Referer", v.url)
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36")
-	resp, _ := http.DefaultClient.Do(req)
+	resp, _ := proxy.Client.Do(req)
 	defer func() {
 		err = resp.Body.Close()
 		if err != nil {
@@ -262,7 +263,7 @@ func (v *Video) getVideoSize(URL string) {
 	req.Header.Set("Range", "bytes=0-104857")
 	req.Header.Set("Upgrade-Insecure-Requests", "1")
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36")
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := proxy.Client.Do(req)
 	if err != nil || resp == nil {
 		return
 	}
