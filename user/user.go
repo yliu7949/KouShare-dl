@@ -6,12 +6,14 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/tidwall/gjson"
+	"github.com/yliu7949/KouShare-dl/internal/proxy"
 )
 
 // User 用户，包含手机号码、依据token文件判断的登陆状态和token的值
@@ -25,10 +27,12 @@ var tokenFileName string
 var u User
 
 func init() {
+	binaryFilePath, _ := os.Executable()
+	ksFilePath := filepath.Dir(binaryFilePath) + string(os.PathSeparator)
 	if runtime.GOOS == "windows" {
-		tokenFileName = "ks.token"
+		tokenFileName = ksFilePath + "ks.token"
 	} else {
-		tokenFileName = ".ks.token"
+		tokenFileName = ksFilePath + ".ks.token"
 	}
 	u.LoadToken()
 }
@@ -58,10 +62,10 @@ func (u *User) LoadToken() {
 	}
 }
 
-// Login 使用短信验证码的方式登陆“蔻享学术”平台，登陆成功后获得token，并将token保存在当前路径下的token文件中
+// Login 使用短信验证码的方式登陆“蔻享学术”平台，登陆成功后获得token，并将token保存在可执行文件所在路径下的token文件中
 func (u *User) Login() error {
 	URL := "https://login.koushare.com/api/api-user/"
-	res1, err := http.PostForm(URL+"sendSms", url.Values{"phone": {u.PhoneNumber}, "scope": {"LOGIN"}})
+	res1, err := proxy.Client.PostForm(URL+"sendSms", url.Values{"phone": {u.PhoneNumber}, "scope": {"LOGIN"}})
 	if err != nil {
 		return err
 	}
@@ -78,7 +82,7 @@ func (u *User) Login() error {
 			return err
 		}
 
-		res2, err := http.PostForm(URL+"smsLogin", url.Values{"phone": {u.PhoneNumber}, "key": {verifyCode}, "rm": {"1"}})
+		res2, err := proxy.Client.PostForm(URL+"smsLogin", url.Values{"phone": {u.PhoneNumber}, "key": {verifyCode}, "rm": {"1"}})
 		if err != nil {
 			return err
 		}
@@ -129,7 +133,7 @@ func saveToken(cookie http.Cookie) error {
 		}
 	}
 
-	f, err := os.OpenFile("ks.token", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	f, err := os.OpenFile(tokenFileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}
@@ -141,7 +145,7 @@ func saveToken(cookie http.Cookie) error {
 		return err
 	}
 	// 设置“ks.token”文件为隐藏文件
-	if err = hideFile("ks.token"); err != nil {
+	if err = hideFile(tokenFileName); err != nil {
 		return err
 	}
 	return nil
@@ -157,7 +161,7 @@ func MyGetRequest(url string, headers ...map[string]string) (string, error) {
 	req.Header.Set("Accept-Encoding", "gzip, deflate, br")
 	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9")
 	req.Header.Set("Referer", "https://www.koushare.com/")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36")
 	if u.LoginState == 1 { //如果token有效，则添加cookie请求头
 		req.Header.Set("Cookie", "Token="+u.Token)
 	}
@@ -167,7 +171,7 @@ func MyGetRequest(url string, headers ...map[string]string) (string, error) {
 		}
 	}
 
-	resp, _ := http.DefaultClient.Do(req)
+	resp, _ := proxy.Client.Do(req)
 	defer func(Body io.ReadCloser) {
 		_ = Body.Close()
 	}(resp.Body)

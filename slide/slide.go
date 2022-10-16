@@ -2,8 +2,8 @@ package slide
 
 import (
 	"fmt"
+	"github.com/yliu7949/KouShare-dl/internal/proxy"
 	"io"
-	"net/http"
 	"os"
 	"strings"
 
@@ -130,7 +130,7 @@ func (s *Slide) findSeriesSlides() {
 }
 
 func (s *Slide) saveFile() {
-	resp, err := http.Get(s.url)
+	resp, err := proxy.Client.Get(s.url)
 	if err != nil {
 		fmt.Println("Get请求出错：", err.Error())
 		return
