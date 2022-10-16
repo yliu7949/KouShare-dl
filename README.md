@@ -89,8 +89,17 @@ KouShare-dl 是一个使用 [Cobra](https://github.com/spf13/cobra)
 
 # 编译
 
-如果您是 Windows 平台用户，可以直接下载 [Releases](https://github.com/yliu7949/KouShare-dl/releases/latest)
-中的可执行文件`ks.exe`。 否则，您需要下载源代码自行编译。
+您可以下载 [Releases](https://github.com/yliu7949/KouShare-dl/releases/latest)
+中的二进制文件`ks.exe`或`ks`后直接使用，也可以下载源代码自行编译。
+### Windows
+```shell
+go build -o ks.exe -trimpath -ldflags "-s -w -buildid=" ks.go
+```
+
+### Linux
+```shell
+go build -o ks -trimpath -ldflags "-s -w -buildid=" ks.go
+```
 
 # 使用方法
 
@@ -103,7 +112,7 @@ cd C:\Users\lenovo\Downloads\
 ks version
 ```
 
-若出现`KouShare-dl v0.8.5`字样，则说明可以正常使用。接下来您可以继续输入 KouShare-dl 程序的命令来进行交互。比如，输入`ks help`并回车，您就可以看到 KouShare-dl 程序的帮助信息了。
+若出现`KouShare-dl v0.9.0`字样，则说明可以正常使用。接下来您可以继续输入 KouShare-dl 程序的命令来进行交互。比如，输入`ks help`并回车，您就可以看到 KouShare-dl 程序的帮助信息了。
 
 # 命令简介
 
@@ -126,6 +135,7 @@ KouShare-dl 程序的命令具有下面的格式：
   record      录制指定直播间ID的直播，命令别名为live
   save        保存指定vid的视频（vid为视频网址里最后面的一串数字），命令别名为video
   slide       下载指定vid的视频对应的课件
+  upgrade     升级为最新版本
   version     输出版本号，并检查最新版本
 ```
 
@@ -137,12 +147,13 @@ KouShare-dl 程序的命令具有下面的格式：
   -h, --help        查看帮助信息
   -n, --name        指定输出文件的名字
   -p, --path        指定保存文件的路径（若不指定，则默认为该程序当前所在的路径）
+  -P, --proxy       指定使用的http/https/socks5代理服务地址
   -q, --quality     指定下载视频的清晰度（high为超清，standard为高清，low为标清，不指定则默认为超清）
       --qpdf-bin    指定qpdf的bin文件夹所在的路径（注：该flag无简写形式）
   -r, --replay      指定是否下载直播间快速回放视频
   -s, --series      指定是否下载整个专题的文件
       --nocolor     指定是否不使用彩色输出
-  -v, --version    查看版本号
+  -v, --version     查看版本号
 ```
 
 需要注意的是，对于每个 command 命令，仅有部分 flag 参数是可用且有效的。可以通过`ks help [command]`来查看某个命令的详细描述及其可用的 flag 参数。

@@ -5,6 +5,7 @@
 *.pdf
 
 *.exe
+*.old
 *.token
 *.txt
 
