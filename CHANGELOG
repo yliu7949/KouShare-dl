@@ -1,3 +1,8 @@
+Sunday, 16 October 2022: Version 0.9.0
+        Added "--proxy" flag to specify a proxy server to use for all requests.
+        Added "upgrade" command for convenient upgrade on Windows and Linux platforms.
+        Always save the token file in the path where the binary file is located.
+
 Sunday, 21 August 2022: Version 0.8.5
         Adjusted the project layout.
         Changed the Golang version from 1.18 to 1.19.
