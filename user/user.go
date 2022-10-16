@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -26,10 +27,12 @@ var tokenFileName string
 var u User
 
 func init() {
+	binaryFilePath, _ := os.Executable()
+	ksFilePath := filepath.Dir(binaryFilePath) + string(os.PathSeparator)
 	if runtime.GOOS == "windows" {
-		tokenFileName = "ks.token"
+		tokenFileName = ksFilePath + "ks.token"
 	} else {
-		tokenFileName = ".ks.token"
+		tokenFileName = ksFilePath + ".ks.token"
 	}
 	u.LoadToken()
 }
@@ -59,7 +62,7 @@ func (u *User) LoadToken() {
 	}
 }
 
-// Login 使用短信验证码的方式登陆“蔻享学术”平台，登陆成功后获得token，并将token保存在当前路径下的token文件中
+// Login 使用短信验证码的方式登陆“蔻享学术”平台，登陆成功后获得token，并将token保存在可执行文件所在路径下的token文件中
 func (u *User) Login() error {
 	URL := "https://login.koushare.com/api/api-user/"
 	res1, err := proxy.Client.PostForm(URL+"sendSms", url.Values{"phone": {u.PhoneNumber}, "scope": {"LOGIN"}})
@@ -130,7 +133,7 @@ func saveToken(cookie http.Cookie) error {
 		}
 	}
 
-	f, err := os.OpenFile("ks.token", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	f, err := os.OpenFile(tokenFileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}
@@ -142,7 +145,7 @@ func saveToken(cookie http.Cookie) error {
 		return err
 	}
 	// 设置“ks.token”文件为隐藏文件
-	if err = hideFile("ks.token"); err != nil {
+	if err = hideFile(tokenFileName); err != nil {
 		return err
 	}
 	return nil
