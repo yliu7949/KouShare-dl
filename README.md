@@ -4,7 +4,7 @@
 
 # KouShare-dl
 
-[![License](https://img.shields.io/github/license/yliu7949/KouShare-dl.svg)](https://github.com/yliu7949/KouShare-dl/blob/master/LICENSE)
+[![License](https://img.shields.io/github/license/yliu7949/KouShare-dl.svg)](https://github.com/yliu7949/KouShare-dl/blob/main/LICENSE)
 [![Build Status](https://github.com/yliu7949/KouShare-dl/workflows/Go/badge.svg)](https://github.com/yliu7949/KouShare-dl/actions?query=workflow%3AGo)
 [![Go Report Card](https://goreportcard.com/badge/github.com/yliu7949/KouShare-dl)](https://goreportcard.com/report/github.com/yliu7949/KouShare-dl)
 [![Github Downloads](https://img.shields.io/github/downloads/yliu7949/KouShare-dl/total.svg)](http://gra.caldis.me/?url=https://github.com/yliu7949/KouShare-dl)
