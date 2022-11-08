@@ -48,6 +48,7 @@ KouShare-dl 是一个使用 [Cobra](https://github.com/spf13/cobra)
     - [下载专题视频时因网络波动导致下载中断该怎么办？](#下载专题视频时因网络波动导致下载中断该怎么办)
     - [下载视频的过程中遇到因被占用而导致文件重命名失败的错误应该如何处理？](#下载视频的过程中遇到因被占用而导致文件重命名失败的错误应该如何处理)
 - [鸣谢](#鸣谢)
+- [许可证合规性](#许可证合规性)
 
 # 功能
 
@@ -465,3 +466,7 @@ ks slide 7405 --qpdf-bin=C:\Downloads\qpdf-10.1.0\bin\
 
 特别感谢 [JetBrains](https://www.jetbrains.com/) 提供的 [GoLand](https://www.jetbrains.com/go) 等 IDE 的授权。
 特别感谢为 KouShare-dl 预览版本测试各项功能的小伙伴们。
+
+# 许可证合规性
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fyliu7949%2FKouShare-dl.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fyliu7949%2FKouShare-dl?ref=badge_large)
