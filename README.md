@@ -13,7 +13,7 @@
 
 
 KouShare-dl 是一个使用 [Cobra](https://github.com/spf13/cobra)
-开发的用于从 [“蔻享学术”](https://www.koushare.com/) 视频网站下载视频和课件的 CLI 工具。
+开发的用于从 [“蔻享学术”](https://www.koushare.com/) 视频网站下载视频和课件的命令行工具。
 
 您可以在常见的操作系统（Windows，macOS 和 Linux 等）里使用该命令行工具。该工具已被发布至公有领域，因此您可以按照您的想法自由使用它，如对它进行修改、重新发布等操作。
 
