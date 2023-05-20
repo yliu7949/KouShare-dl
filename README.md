@@ -1,5 +1,5 @@
 <p align="center">
-  <img width="240" src="./logo.png" style="text-align: center;" alt="KouShare-dl logo">
+  <img width="240" src="https://github.com/yliu7949/KouShare-dl/blob/main/logo.png" style="text-align: center;" alt="KouShare-dl logo">
 </p>
 
 # KouShare-dl
