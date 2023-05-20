@@ -43,6 +43,7 @@ func (l *Live) WaitAndRecordTheLive(liveTime string, autoMerge bool) {
 		parsedTime, err := time.ParseInLocation("2006-01-02 15:04:05", liveTime, loc)
 		if err != nil {
 			fmt.Println("时间解析出错：", err)
+			return
 		}
 		fmt.Println("设定的直播时间为：", parsedTime)
 		deltaTime, _ := time.ParseDuration(fmt.Sprint(parsedTime.Unix()-time.Now().Unix()) + "s")
@@ -68,7 +69,37 @@ func (l *Live) WaitAndRecordTheLive(liveTime string, autoMerge bool) {
 		var msg string
 		switch l.isLive {
 		case "0":
-			msg = "直播尚未开始，距离开播还有一段时间。"
+			fmt.Printf("直播尚未开始，开播时间为 %s，倒计时结束后将自动开始录制。\n", l.date)
+			loc, _ := time.LoadLocation("Local")
+			parsedTime, err := time.ParseInLocation("2006-01-02 15:04:05", l.date, loc)
+			if err != nil {
+				fmt.Println("直播时间解析出错：", err)
+				return
+			}
+			deltaTime, _ := time.ParseDuration(fmt.Sprint(parsedTime.Unix()-time.Now().Unix()) + "s")
+			formatDuration := func(seconds int64) string {
+				duration := time.Duration(seconds) * time.Second
+				days := duration / (24 * time.Hour)
+				duration -= days * (24 * time.Hour)
+				hours := duration / time.Hour
+				duration -= hours * time.Hour
+				minutes := duration / time.Minute
+				duration -= minutes * time.Minute
+				seconds = int64(duration.Seconds())
+
+				return fmt.Sprintf("距开播：%02d天%02d时%02d分%02d秒", days, hours, minutes, seconds)
+			}
+			go func() {
+				for {
+					if parsedTime.Unix()-time.Now().Unix() <= 0 {
+						fmt.Println("\n直播时间到。")
+						return
+					}
+					fmt.Printf("\r %s...", formatDuration(parsedTime.Unix()-time.Now().Unix()))
+					time.Sleep(time.Second)
+				}
+			}()
+			time.Sleep(deltaTime)
 		case "2":
 			msg = "直播已结束。"
 			if l.quickReplayURL != "" {
@@ -79,17 +110,20 @@ func (l *Live) WaitAndRecordTheLive(liveTime string, autoMerge bool) {
 			} else if l.playback == "1" {
 				msg += "快速回放暂未上线。"
 			}
+			fmt.Println(msg)
+			return
 		case "3":
 			msg = "正式回放视频已上线。"
 			if l.rtmpURL != "" {
 				vid := strings.Split(l.rtmpURL, "/")[len(strings.Split(l.rtmpURL, "/"))-1]
 				msg += fmt.Sprintf(`访问 %s 观看录播视频或使用“ks save %s”命令下载正式回放视频。`, l.rtmpURL, vid)
 			}
+			fmt.Println(msg)
+			return
 		default:
-			msg = "直播未按时开始或已结束。"
+			fmt.Println("直播未按时开始或已结束。")
+			return
 		}
-		fmt.Println(msg)
-		return
 	}
 
 	fmt.Println("运行录制程序...")
@@ -226,7 +260,7 @@ func (l *Live) downloadTsFile() {
 	req.Header.Set("Host", "live.am-stc.cn")
 	req.Header.Set("Origin", "https://www.koushare.com")
 	req.Header.Set("Referer", "https://www.koushare.com")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36")
 	resp, _ := proxy.Client.Do(req)
 	defer func() {
 		err = resp.Body.Close()
@@ -266,7 +300,7 @@ func (l *Live) downloadAndMergeTsFile() {
 	req.Header.Set("Host", "live.am-stc.cn")
 	req.Header.Set("Origin", "https://www.koushare.com")
 	req.Header.Set("Referer", "https://www.koushare.com")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36")
 	resp, _ := proxy.Client.Do(req)
 	defer func() {
 		err = resp.Body.Close()

@@ -11,7 +11,7 @@ import (
 	"github.com/yliu7949/KouShare-dl/internal/upgrade"
 )
 
-const version = "v0.9.0"
+const version = "v0.9.1"
 
 func main() {
 	//defer profile.Start().Stop()
