@@ -36,15 +36,16 @@ func InfoCmd() *cobra.Command {
 	return cmdInfo
 }
 
+var quality string
+var isSeries bool
+
 // SaveCmd 保存指定vid的视频
 func SaveCmd() *cobra.Command {
 	var v video.Video
-	var quality string
-	var isSeries bool
 	var cmdSave = &cobra.Command{
 		Use:   "save [vid]",
 		Short: "保存指定vid的视频",
-		Long:  `保存指定vid的视频到本地计算机，未登陆时仅可下载标清视频，登录后可以下载更高清晰度的视频.仅能下载已购买的付费视频.`,
+		Long:  `保存指定vid的视频到本地计算机，未登陆时仅可下载标清视频，登录后可以下载更高清晰度的视频. 仅能下载已购买的付费视频.`,
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			v.Vid = args[0]
@@ -60,11 +61,35 @@ func SaveCmd() *cobra.Command {
 		},
 		Aliases: []string{"video"},
 	}
-	cmdSave.Flags().StringVarP(&path, "path", "p", `.`, "指定保存视频的路径")
-	cmdSave.Flags().BoolVarP(&isSeries, "series", "s", false, "指定是否下载专题视频")
-	cmdSave.Flags().StringVarP(&quality, "quality", "q", `high`, "指定下载视频的清晰度（high、standard或low）")
+	cmdSave.PersistentFlags().StringVarP(&path, "path", "p", `.`, "指定保存视频的路径")
+	cmdSave.PersistentFlags().BoolVarP(&isSeries, "series", "s", false, "指定是否下载专题视频")
+	cmdSave.PersistentFlags().StringVarP(&quality, "quality", "q", `high`, "指定下载视频的清晰度（high、standard或low）")
+	cmdSave.AddCommand(SaveBatchCmd())
 
 	return cmdSave
+}
+
+// SaveBatchCmd 批量保存指定vid和清晰度的视频，是save命令的子命令
+func SaveBatchCmd() *cobra.Command {
+	var b video.Batch
+	var cmdSaveBatch = &cobra.Command{
+		Use:   "batch [vids]",
+		Short: "批量保存指定vid的视频",
+		Long:  `批量保存指定vid的视频到本地计算机，仅能下载已购买的付费视频.`,
+		Args:  cobra.MinimumNArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			b.Vids = args[0]
+			if path[len(path)-1:] != `\` && path[len(path)-1:] != "/" {
+				path = path + "/"
+			}
+			b.SaveDir = path
+			b.Quality = quality
+			b.IsSeries = isSeries
+			b.DownloadMultiVideos()
+		},
+	}
+
+	return cmdSaveBatch
 }
 
 // RecordCmd 录制指定直播间ID的直播
