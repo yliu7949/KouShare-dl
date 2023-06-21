@@ -42,6 +42,7 @@ type Video struct {
 	vrName       string // 视频类别，分为“付费视频”、“免费视频”和“加密视频”三类，若为空则视为“免费视频”
 	SaveDir      string
 	filename     string // 保存视频文件时使用的文件名，不包含.mp4等扩展名
+	VidPrefix    bool   // 视频文件名是否使用具体的vid作为前缀，例如vid_filename.mp4
 	videoQuality string // 实际下载视频时的清晰度，分为“标清”、“高清”和“超清”三类
 	wg           sync.WaitGroup
 }
@@ -99,6 +100,9 @@ func (v *Video) DownloadSingleVideo(quality string) {
 	reg, _ := regexp.Compile(`[\\/:*?"<>|]`)
 	title = reg.ReplaceAllString(v.title, "")
 
+	if v.VidPrefix {
+		v.filename += v.Vid + "_"
+	}
 	v.filename += title + "_" + v.videoQuality
 
 	//若mp4文件已存在，说明该视频已下载完成。自动跳过该视频的下载。
@@ -151,7 +155,7 @@ func (v *Video) DownloadSingleVideo(quality string) {
 			return
 		}
 	}
-	fileName := v.SaveDir + title + "_" + v.videoQuality + ".tmp"
+	fileName := v.SaveDir + v.filename + ".tmp"
 	dstFile, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -298,7 +302,7 @@ func (v *Video) showBar() {
 			fmt.Printf("\r [%-50s]%s  %6.2fMB/%.2fMB\n\n", strings.Repeat(">", 50), color.Done(" 100%"),
 				float64(v.checkTmpFileSize())/1024/1024, float64(v.size)/1024/1024)
 			//将下载完成的tmp文件重命名为mp4文件
-			err := os.Rename(v.SaveDir+title+"_"+v.videoQuality+".tmp", v.SaveDir+title+"_"+v.videoQuality+".mp4")
+			err := os.Rename(v.SaveDir+v.filename+".tmp", v.SaveDir+v.filename+".mp4")
 			if err != nil {
 				fmt.Println(err)
 			}

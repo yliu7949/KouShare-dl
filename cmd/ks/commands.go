@@ -38,6 +38,7 @@ func InfoCmd() *cobra.Command {
 
 var quality string
 var isSeries bool
+var vidPrefix bool
 
 // SaveCmd 保存指定vid的视频
 func SaveCmd() *cobra.Command {
@@ -53,6 +54,7 @@ func SaveCmd() *cobra.Command {
 				path = path + "/"
 			}
 			v.SaveDir = path
+			v.VidPrefix = vidPrefix
 			if isSeries {
 				v.DownloadSeriesVideos(quality)
 			} else {
@@ -64,6 +66,7 @@ func SaveCmd() *cobra.Command {
 	cmdSave.PersistentFlags().StringVarP(&path, "path", "p", `.`, "指定保存视频的路径")
 	cmdSave.PersistentFlags().BoolVarP(&isSeries, "series", "s", false, "指定是否下载专题视频")
 	cmdSave.PersistentFlags().StringVarP(&quality, "quality", "q", `high`, "指定下载视频的清晰度（high、standard或low）")
+	cmdSave.PersistentFlags().BoolVarP(&vidPrefix, "vidPrefix", "v", false, "指定是否使用vid作为保存视频文件名的前缀")
 	cmdSave.AddCommand(SaveBatchCmd())
 
 	return cmdSave
@@ -85,6 +88,7 @@ func SaveBatchCmd() *cobra.Command {
 			b.SaveDir = path
 			b.Quality = quality
 			b.IsSeries = isSeries
+			b.VidPrefix = vidPrefix
 			b.DownloadMultiVideos()
 		},
 	}

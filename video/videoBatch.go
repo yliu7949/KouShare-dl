@@ -13,6 +13,7 @@ type Batch struct {
 	SaveDir   string
 	Quality   string
 	IsSeries  bool
+	VidPrefix bool
 }
 
 // DownloadMultiVideos 下载多个视频
@@ -20,6 +21,7 @@ func (b *Batch) DownloadMultiVideos() {
 	b.inspectVids()
 	for _, video := range b.VideoList {
 		video.SaveDir = b.SaveDir
+		video.VidPrefix = b.VidPrefix
 		if b.IsSeries {
 			video.DownloadSeriesVideos(b.Quality)
 		} else {
