@@ -171,7 +171,10 @@ func MyGetRequest(url string, headers ...map[string]string) (string, error) {
 		}
 	}
 
-	resp, _ := proxy.Client.Do(req)
+	resp, err := proxy.Client.Do(req)
+	if err != nil {
+		return "", err
+	}
 	defer func(Body io.ReadCloser) {
 		_ = Body.Close()
 	}(resp.Body)
