@@ -38,7 +38,7 @@ type Video struct {
 	standardURL  string // 高清播放链接
 	url          string // 超清播放链接
 	vFiveURL     string // 加密播放链接，试看播放链接
-	statusCode   string // 获取视频信息时返回的状态码，401即需要登陆；301即需要付费；601即需要密码；200即请求成功（免费视频或已购买视频）；500即视频不存在
+	statusCode   string // 获取视频信息时返回的状态码，401即需要登录；301即需要付费；601即需要密码；200即请求成功（免费视频或已购买视频）；500即视频不存在
 	vrName       string // 视频类别，分为“付费视频”、“免费视频”和“加密视频”三类，若为空则视为“免费视频”
 	SaveDir      string
 	filename     string // 保存视频文件时使用的文件名，不包含.mp4等扩展名
@@ -58,7 +58,7 @@ func (v *Video) DownloadSingleVideo(quality string) {
 
 	if v.statusCode == "401" {
 		fmt.Printf("%s\tvid=%s\n", v.title, v.Vid)
-		fmt.Print(" [>>>>>>>>>>> " + color.Error("该视频需登陆，自动取消下载") + " >>>>>>>>>>>]\n\n")
+		fmt.Print(" [>>>>>>>>>>> " + color.Error("该视频需登录，自动取消下载") + " >>>>>>>>>>>]\n\n")
 		return
 	} else if v.statusCode == "301" {
 		fmt.Printf("%s\tvid=%s\n", v.title, v.Vid)

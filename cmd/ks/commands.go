@@ -46,7 +46,7 @@ func SaveCmd() *cobra.Command {
 	var cmdSave = &cobra.Command{
 		Use:   "save [vid]",
 		Short: "保存指定vid的视频",
-		Long:  `保存指定vid的视频到本地计算机，未登陆时仅可下载标清视频，登录后可以下载更高清晰度的视频. 仅能下载已购买的付费视频.`,
+		Long:  `保存指定vid的视频到本地计算机，未登录时仅可下载标清视频，登录后可以下载更高清晰度的视频. 仅能下载已购买的付费视频.`,
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			v.Vid = args[0]
@@ -191,13 +191,13 @@ func SlideCmd() *cobra.Command {
 	return cmdSlide
 }
 
-// LoginCmd 通过短信验证码获取“蔻享学术”登陆凭证
+// LoginCmd 通过短信验证码获取“蔻享学术”登录凭证
 func LoginCmd() *cobra.Command {
 	var u user.User
 	var cmdLogin = &cobra.Command{
 		Use:   "login [phone number]",
-		Short: "通过短信验证码获取“蔻享学术”登陆凭证",
-		Long:  `[phone number]参数为手机号码（格式15012345678），输入短信验证码以登陆“蔻享学术”平台并将登陆凭证保存至本地.登录后一周内免再次登录.`,
+		Short: "通过短信验证码获取“蔻享学术”登录凭证",
+		Long:  `[phone number]参数为手机号码（格式15012345678），输入短信验证码以登录“蔻享学术”平台并将登录凭证保存至本地.登录后一周内免再次登录.`,
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			re := regexp.MustCompile(`1[3-9]\d{9}`)
@@ -216,13 +216,13 @@ func LoginCmd() *cobra.Command {
 	return cmdLogin
 }
 
-// LogoutCmd 退出登录并删除保存在本地的登陆凭证文件
+// LogoutCmd 退出登录并删除保存在本地的登录凭证文件
 func LogoutCmd() *cobra.Command {
 	var u user.User
 	var cmdLogout = &cobra.Command{
 		Use:   "logout",
-		Short: "退出登陆",
-		Long:  `退出登录并删除保存在本地的登陆凭证文件.`,
+		Short: "退出登录",
+		Long:  `退出登录并删除保存在本地的登录凭证文件.`,
 		Args:  cobra.MinimumNArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
 			u.Logout()

@@ -16,7 +16,7 @@ import (
 	"github.com/yliu7949/KouShare-dl/internal/proxy"
 )
 
-// User 用户，包含手机号码、依据token文件判断的登陆状态和token的值
+// User 用户，包含手机号码、依据token文件判断的登录状态和token的值
 type User struct {
 	PhoneNumber string
 	LoginState  int //无token文件则为0；token过期则为-1；token有效则为1
@@ -48,21 +48,21 @@ func (u *User) LoadToken() {
 		}
 		text := strings.Split(string(f), " ")
 
-		// 若token过期，则需要重新登陆获取token
+		// 若token过期，则需要重新登录获取token
 		if t, _ := strconv.Atoi(text[1]); time.Now().Unix()-int64(t) > 604800 {
 			u.LoginState = -1
-			fmt.Printf("凭证过期，需要重新登陆。\n\n")
+			fmt.Printf("凭证过期，需要重新登录。\n\n")
 		} else {
 			u.LoginState = 1
 			u.Token = text[0]
-			fmt.Printf("登陆凭证有效。\n\n")
+			fmt.Printf("登录凭证有效。\n\n")
 		}
 	} else {
 		u.LoginState = 0
 	}
 }
 
-// Login 使用短信验证码的方式登陆“蔻享学术”平台，登陆成功后获得token，并将token保存在可执行文件所在路径下的token文件中
+// Login 使用短信验证码的方式登录“蔻享学术”平台，登录成功后获得token，并将token保存在可执行文件所在路径下的token文件中
 func (u *User) Login() error {
 	URL := "https://login.koushare.com/api/api-user/"
 	res1, err := proxy.Client.PostForm(URL+"sendSms", url.Values{"phone": {u.PhoneNumber}, "scope": {"LOGIN"}})
@@ -92,7 +92,7 @@ func (u *User) Login() error {
 			return err
 		}
 		if res2.StatusCode == 200 && gjson.Get(string(body), "code").String() == "200" {
-			fmt.Println("登陆成功。")
+			fmt.Println("登录成功。")
 			if len(res2.Cookies()) == 1 {
 				cookie := *(res2.Cookies()[0])
 				u.Token = cookie.Value
@@ -116,10 +116,10 @@ func (u *User) Logout() {
 		_ = os.Remove(tokenFileName)
 	}
 	u.LoginState = 0
-	fmt.Println("已删除登陆凭证")
+	fmt.Println("已删除登录凭证")
 }
 
-// GetLoginState 返回LoginState的值；有效登陆则为1，否则为0或-1
+// GetLoginState 返回LoginState的值；有效登录则为1，否则为0或-1
 func GetLoginState() int {
 	return u.LoginState
 }
