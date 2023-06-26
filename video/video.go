@@ -347,7 +347,7 @@ func (v *Video) ShowVideoInfo() {
 	}
 
 	if v.videoTime == "" {
-		v.videoTime = "Unknown"
+		v.videoTime = "Unknown "
 	}
 	if v.abstract == "" {
 		v.abstract = "(无)"

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/tidwall/gjson"
+	"github.com/yliu7949/KouShare-dl/internal/color"
 	"github.com/yliu7949/KouShare-dl/internal/proxy"
 	"github.com/yliu7949/KouShare-dl/user"
 )
@@ -33,6 +34,9 @@ type Live struct {
 	quickReplayURL string // 快速回放地址
 	rtmpURL        string // 正式回放视频地址
 	playback       string // 值为0表示无回放；值为1表示有回放。
+	needPassword   string // 值为0表示无需密码；值为1表示需要密码。
+	Password       string // 观看直播间需要输入的密码
+	statusCode     string // 获取直播信息时返回的状态码，301即需要密码或密码不正确；200即请求成功（无需密码或密码正确）。
 	SaveDir        string
 }
 
@@ -64,7 +68,16 @@ func (l *Live) WaitAndRecordTheLive(liveTime string, autoMerge bool) {
 		return
 	}
 	l.checkLiveStatus()
+	if l.needPassword == "1" && l.Password == "" {
+		fmt.Println(color.Highlight("该直播间需要密码，请使用 --password 参数指定密码。"))
+		return
+	}
 	l.getLiveByRoomID(true)
+
+	if l.statusCode == "301" {
+		fmt.Println(color.Highlight("直播间密码不正确。"))
+		return
+	}
 	if l.isLive != "1" {
 		var msg string
 		switch l.isLive {
@@ -152,17 +165,24 @@ func (l *Live) checkLiveStatus() {
 		fmt.Println("Get请求出错：", err)
 	} else {
 		l.isLive = gjson.Get(str, "data.islive").String()
+		l.needPassword = gjson.Get(str, "data.lopen").String()
 	}
 }
 
 func (l *Live) getLiveByRoomID(chooseHighQuality bool) {
 	URL := "https://api.koushare.com/api/api-live/getLiveByRoomid?roomid=" + l.RoomID + "&allData=1"
+	if l.needPassword == "1" {
+		URL = fmt.Sprintf("https://api.koushare.com/api/api-live/getLiveByRoomid?roomid=%s&password=%s&allData=1",
+			l.RoomID, l.Password)
+	}
+
 	str, err := user.MyGetRequest(URL)
 	if err != nil {
 		fmt.Println("Get请求出错：", err)
 		return
 	}
 
+	l.statusCode = gjson.Get(str, "code").String()
 	l.title = gjson.Get(str, "data.ltitle").String()
 	l.date = gjson.Get(str, "data.livedate").String()
 	l.sponsor = gjson.Get(str, "data.lsponsor").String()
@@ -179,6 +199,7 @@ func (l *Live) getLiveByRoomID(chooseHighQuality bool) {
 	l.quickReplayURL = gjson.Get(str, "data.lnoticeurl").String()
 	l.rtmpURL = gjson.Get(str, "data.rtmpurl").String()
 	l.playback = gjson.Get(str, "data.playback").String()
+	l.needPassword = gjson.Get(str, "data.lopen").String()
 }
 
 // ShowLiveInfo 按照格式输出直播的基本信息
@@ -212,11 +233,19 @@ func (l *Live) ShowLiveInfo() {
 	fmt.Printf("%s (roomID=%s):\n", l.title, l.RoomID)
 	fmt.Printf("\n\t直播状态：%-17s主办单位：%s\n", liveStatus, l.sponsor)
 	fmt.Printf("\t开播时间：%-22s有无回放：%s\n", l.date, l.playback)
-	fmt.Printf("\t浏览次数：%-22s专题：%s\n\n", l.clicks, l.topicName)
-	fmt.Printf("\t最新通知：%s\n", l.notice)
+	fmt.Printf("\t浏览次数：%-22s专题：%s\n", l.clicks, l.topicName)
+	if l.needPassword == "1" {
+		fmt.Printf("\n\t※该直播间需要密码\n")
+	}
+	fmt.Printf("\n\t最新通知：%s\n", l.notice)
 }
 
 func (l *Live) recordLive(autoMerge bool) {
+	if l.m3u8URL == "" {
+		fmt.Println(color.Error("m3u8 URL 为空，无法录制。"))
+		return
+	}
+
 	var url string
 	for {
 		l.getNewTsURLBym3u8()

@@ -102,6 +102,7 @@ func RecordCmd() *cobra.Command {
 	var liveTime string //开播时间，格式应为"2006-01-02 15:04:05"
 	var autoMerge bool
 	var replay bool
+	var password string
 
 	var cmdRecord = &cobra.Command{
 		Use:   "record [roomID]",
@@ -114,6 +115,7 @@ func RecordCmd() *cobra.Command {
 				path = path + "/"
 			}
 			l.SaveDir = path
+			l.Password = password
 			if !replay {
 				l.WaitAndRecordTheLive(liveTime, autoMerge)
 			} else {
@@ -126,6 +128,7 @@ func RecordCmd() *cobra.Command {
 	cmdRecord.Flags().StringVarP(&liveTime, "at", "@", "", `开播时间，格式为"2006-01-02 15:04:05"`)
 	cmdRecord.Flags().BoolVarP(&autoMerge, "autoMerge", "a", false, "指定是否自动合并下载的视频片段文件")
 	cmdRecord.Flags().BoolVarP(&replay, "replay", "r", false, "指定是否下载直播间快速回放视频")
+	cmdRecord.Flags().StringVar(&password, "password", "", "指定直播间密码")
 
 	return cmdRecord
 }
