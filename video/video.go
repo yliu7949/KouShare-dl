@@ -95,6 +95,11 @@ func (v *Video) DownloadSingleVideo(quality string) {
 		}
 	}
 	v.getVideoSize(URL)
+	if v.size == 0 {
+		fmt.Printf("%s\tvid=%s\n", v.title, v.Vid)
+		fmt.Print(" [>>>>>>>>>>> " + color.Highlight("该视频不存在，自动取消下载") + " >>>>>>>>>>>]\n\n")
+		return
+	}
 
 	// 过滤视频标题中的不合法字符
 	reg, _ := regexp.Compile(`[\\/:*?"<>|]`)
