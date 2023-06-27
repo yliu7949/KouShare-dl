@@ -1,3 +1,11 @@
+Wednesday, 28 June 2023: Version 0.9.1
+        Initiated recording after counting down to the live start time.
+        Added "batch" subcommand for "save" command.
+        Added "--vidPrefix" flag to use vid as a prefix.
+        Corrected the typo from "登陆" to "登录".
+        Added "clean" command.
+        Fixed non-existent source video error.
+
 Sunday, 16 October 2022: Version 0.9.0
         Added "--proxy" flag to specify a proxy server to use for all requests.
         Added "upgrade" command for convenient upgrade on Windows and Linux platforms.
