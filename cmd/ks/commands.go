@@ -2,7 +2,10 @@ package ks
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/yliu7949/KouShare-dl/live"
@@ -233,4 +236,41 @@ func LogoutCmd() *cobra.Command {
 	}
 
 	return cmdLogout
+}
+
+// CleanCmd 清除指定目录下的所有临时文件
+func CleanCmd() *cobra.Command {
+	var quiet bool
+	var cmdClean = &cobra.Command{
+		Use:   "clean",
+		Short: "清除指定目录下的所有tmp临时文件",
+		Long:  `清除指定目录下的所有tmp临时文件.`,
+		Run: func(cmd *cobra.Command, args []string) {
+			if path[len(path)-1:] != `\` && path[len(path)-1:] != "/" {
+				path = path + "/"
+			}
+
+			files, err := os.ReadDir(path)
+			if err != nil {
+				fmt.Println("读取目录错误：", err.Error())
+				return
+			}
+
+			for _, file := range files {
+				if !file.IsDir() && strings.HasSuffix(file.Name(), ".tmp") {
+					err := os.Remove(filepath.Join(path, file.Name()))
+					if err != nil {
+						fmt.Println("删除文件错误：", err.Error())
+						continue
+					}
+					if !quiet {
+						fmt.Println("已清除文件：", file.Name())
+					}
+				}
+			}
+		},
+	}
+	cmdClean.Flags().StringVarP(&path, "path", "p", `.`, "指定清理临时文件的路径")
+	cmdClean.Flags().BoolVarP(&quiet, "quiet", "q", false, "指定是否不输出清理过程中的信息")
+	return cmdClean
 }

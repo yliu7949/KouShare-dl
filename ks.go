@@ -5,7 +5,7 @@ import (
 
 	//"github.com/pkg/profile"
 	"github.com/spf13/cobra"
-	ks "github.com/yliu7949/KouShare-dl/cmd/ks"
+	"github.com/yliu7949/KouShare-dl/cmd/ks"
 	"github.com/yliu7949/KouShare-dl/internal/color"
 	"github.com/yliu7949/KouShare-dl/internal/proxy"
 	"github.com/yliu7949/KouShare-dl/internal/upgrade"
@@ -25,7 +25,7 @@ func main() {
 		},
 	}
 	rootCmd.AddCommand(ks.InfoCmd(), ks.SaveCmd(), ks.RecordCmd(), ks.MergeCmd(), ks.SlideCmd(),
-		ks.LoginCmd(), ks.LogoutCmd(), VersionCmd(), UpgradeCmd())
+		ks.LoginCmd(), ks.LogoutCmd(), ks.CleanCmd(), VersionCmd(), UpgradeCmd())
 	rootCmd.SetVersionTemplate(`{{printf "KouShare-dl %s\n" .Version}}`)
 	rootCmd.Version = version
 
