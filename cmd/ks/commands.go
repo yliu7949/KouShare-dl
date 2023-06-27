@@ -2,7 +2,10 @@ package ks
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/yliu7949/KouShare-dl/live"
@@ -36,15 +39,17 @@ func InfoCmd() *cobra.Command {
 	return cmdInfo
 }
 
+var quality string
+var isSeries bool
+var vidPrefix bool
+
 // SaveCmd 保存指定vid的视频
 func SaveCmd() *cobra.Command {
 	var v video.Video
-	var quality string
-	var isSeries bool
 	var cmdSave = &cobra.Command{
 		Use:   "save [vid]",
 		Short: "保存指定vid的视频",
-		Long:  `保存指定vid的视频到本地计算机，未登陆时仅可下载标清视频，登录后可以下载更高清晰度的视频.仅能下载已购买的付费视频.`,
+		Long:  `保存指定vid的视频到本地计算机，未登录时仅可下载标清视频，登录后可以下载更高清晰度的免费视频. 此外仅能下载已购买的付费视频.`,
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			v.Vid = args[0]
@@ -52,6 +57,7 @@ func SaveCmd() *cobra.Command {
 				path = path + "/"
 			}
 			v.SaveDir = path
+			v.VidPrefix = vidPrefix
 			if isSeries {
 				v.DownloadSeriesVideos(quality)
 			} else {
@@ -60,11 +66,37 @@ func SaveCmd() *cobra.Command {
 		},
 		Aliases: []string{"video"},
 	}
-	cmdSave.Flags().StringVarP(&path, "path", "p", `.`, "指定保存视频的路径")
-	cmdSave.Flags().BoolVarP(&isSeries, "series", "s", false, "指定是否下载专题视频")
-	cmdSave.Flags().StringVarP(&quality, "quality", "q", `high`, "指定下载视频的清晰度（high、standard或low）")
+	cmdSave.PersistentFlags().StringVarP(&path, "path", "p", `.`, "指定保存视频的路径")
+	cmdSave.PersistentFlags().BoolVarP(&isSeries, "series", "s", false, "指定是否下载专题视频")
+	cmdSave.PersistentFlags().StringVarP(&quality, "quality", "q", `high`, "指定下载视频的清晰度（high、standard或low）")
+	cmdSave.PersistentFlags().BoolVarP(&vidPrefix, "vidPrefix", "v", false, "指定是否使用vid作为保存视频文件名的前缀")
+	cmdSave.AddCommand(SaveBatchCmd())
 
 	return cmdSave
+}
+
+// SaveBatchCmd 批量保存指定vid和清晰度的视频，是save命令的子命令
+func SaveBatchCmd() *cobra.Command {
+	var b video.Batch
+	var cmdSaveBatch = &cobra.Command{
+		Use:   "batch [vids]",
+		Short: "批量保存指定vid的视频",
+		Long:  `批量保存指定vid的视频到本地计算机，可以下载不同清晰度的免费视频，但仅能下载已购买的付费视频.`,
+		Args:  cobra.MinimumNArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			b.Vids = args[0]
+			if path[len(path)-1:] != `\` && path[len(path)-1:] != "/" {
+				path = path + "/"
+			}
+			b.SaveDir = path
+			b.Quality = quality
+			b.IsSeries = isSeries
+			b.VidPrefix = vidPrefix
+			b.DownloadMultiVideos()
+		},
+	}
+
+	return cmdSaveBatch
 }
 
 // RecordCmd 录制指定直播间ID的直播
@@ -73,6 +105,7 @@ func RecordCmd() *cobra.Command {
 	var liveTime string //开播时间，格式应为"2006-01-02 15:04:05"
 	var autoMerge bool
 	var replay bool
+	var password string
 
 	var cmdRecord = &cobra.Command{
 		Use:   "record [roomID]",
@@ -85,6 +118,7 @@ func RecordCmd() *cobra.Command {
 				path = path + "/"
 			}
 			l.SaveDir = path
+			l.Password = password
 			if !replay {
 				l.WaitAndRecordTheLive(liveTime, autoMerge)
 			} else {
@@ -97,6 +131,7 @@ func RecordCmd() *cobra.Command {
 	cmdRecord.Flags().StringVarP(&liveTime, "at", "@", "", `开播时间，格式为"2006-01-02 15:04:05"`)
 	cmdRecord.Flags().BoolVarP(&autoMerge, "autoMerge", "a", false, "指定是否自动合并下载的视频片段文件")
 	cmdRecord.Flags().BoolVarP(&replay, "replay", "r", false, "指定是否下载直播间快速回放视频")
+	cmdRecord.Flags().StringVar(&password, "password", "", "指定直播间密码")
 
 	return cmdRecord
 }
@@ -162,13 +197,13 @@ func SlideCmd() *cobra.Command {
 	return cmdSlide
 }
 
-// LoginCmd 通过短信验证码获取“蔻享学术”登陆凭证
+// LoginCmd 通过短信验证码获取“蔻享学术”登录凭证
 func LoginCmd() *cobra.Command {
 	var u user.User
 	var cmdLogin = &cobra.Command{
 		Use:   "login [phone number]",
-		Short: "通过短信验证码获取“蔻享学术”登陆凭证",
-		Long:  `[phone number]参数为手机号码（格式15012345678），输入短信验证码以登陆“蔻享学术”平台并将登陆凭证保存至本地.登录后一周内免再次登录.`,
+		Short: "通过短信验证码获取“蔻享学术”登录凭证",
+		Long:  `[phone number]参数为手机号码（格式15012345678），输入短信验证码以登录“蔻享学术”平台并将登录凭证保存至本地.登录后一周内免再次登录.`,
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			re := regexp.MustCompile(`1[3-9]\d{9}`)
@@ -187,13 +222,13 @@ func LoginCmd() *cobra.Command {
 	return cmdLogin
 }
 
-// LogoutCmd 退出登录并删除保存在本地的登陆凭证文件
+// LogoutCmd 退出登录并删除保存在本地的登录凭证文件
 func LogoutCmd() *cobra.Command {
 	var u user.User
 	var cmdLogout = &cobra.Command{
 		Use:   "logout",
-		Short: "退出登陆",
-		Long:  `退出登录并删除保存在本地的登陆凭证文件.`,
+		Short: "退出登录",
+		Long:  `退出登录并删除保存在本地的登录凭证文件.`,
 		Args:  cobra.MinimumNArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
 			u.Logout()
@@ -201,4 +236,41 @@ func LogoutCmd() *cobra.Command {
 	}
 
 	return cmdLogout
+}
+
+// CleanCmd 清除指定目录下的所有临时文件
+func CleanCmd() *cobra.Command {
+	var quiet bool
+	var cmdClean = &cobra.Command{
+		Use:   "clean",
+		Short: "清除指定目录下的所有tmp临时文件",
+		Long:  `清除指定目录下的所有tmp临时文件.`,
+		Run: func(cmd *cobra.Command, args []string) {
+			if path[len(path)-1:] != `\` && path[len(path)-1:] != "/" {
+				path = path + "/"
+			}
+
+			files, err := os.ReadDir(path)
+			if err != nil {
+				fmt.Println("读取目录错误：", err.Error())
+				return
+			}
+
+			for _, file := range files {
+				if !file.IsDir() && strings.HasSuffix(file.Name(), ".tmp") {
+					err := os.Remove(filepath.Join(path, file.Name()))
+					if err != nil {
+						fmt.Println("删除文件错误：", err.Error())
+						continue
+					}
+					if !quiet {
+						fmt.Println("已清除文件：", file.Name())
+					}
+				}
+			}
+		},
+	}
+	cmdClean.Flags().StringVarP(&path, "path", "p", `.`, "指定清理临时文件的路径")
+	cmdClean.Flags().BoolVarP(&quiet, "quiet", "q", false, "指定是否不输出清理过程中的信息")
+	return cmdClean
 }

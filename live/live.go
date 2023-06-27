@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/tidwall/gjson"
+	"github.com/yliu7949/KouShare-dl/internal/color"
 	"github.com/yliu7949/KouShare-dl/internal/proxy"
 	"github.com/yliu7949/KouShare-dl/user"
 )
@@ -33,6 +34,9 @@ type Live struct {
 	quickReplayURL string // 快速回放地址
 	rtmpURL        string // 正式回放视频地址
 	playback       string // 值为0表示无回放；值为1表示有回放。
+	needPassword   string // 值为0表示无需密码；值为1表示需要密码。
+	Password       string // 观看直播间需要输入的密码
+	statusCode     string // 获取直播信息时返回的状态码，301即需要密码或密码不正确；200即请求成功（无需密码或密码正确）。
 	SaveDir        string
 }
 
@@ -43,6 +47,7 @@ func (l *Live) WaitAndRecordTheLive(liveTime string, autoMerge bool) {
 		parsedTime, err := time.ParseInLocation("2006-01-02 15:04:05", liveTime, loc)
 		if err != nil {
 			fmt.Println("时间解析出错：", err)
+			return
 		}
 		fmt.Println("设定的直播时间为：", parsedTime)
 		deltaTime, _ := time.ParseDuration(fmt.Sprint(parsedTime.Unix()-time.Now().Unix()) + "s")
@@ -63,12 +68,51 @@ func (l *Live) WaitAndRecordTheLive(liveTime string, autoMerge bool) {
 		return
 	}
 	l.checkLiveStatus()
+	if l.needPassword == "1" && l.Password == "" {
+		fmt.Println(color.Highlight("该直播间需要密码，请使用 --password 参数指定密码。"))
+		return
+	}
 	l.getLiveByRoomID(true)
+
+	if l.statusCode == "301" {
+		fmt.Println(color.Highlight("直播间密码不正确。"))
+		return
+	}
 	if l.isLive != "1" {
 		var msg string
 		switch l.isLive {
 		case "0":
-			msg = "直播尚未开始，距离开播还有一段时间。"
+			fmt.Printf("直播尚未开始，开播时间为 %s，倒计时结束后将自动开始录制。\n", l.date)
+			loc, _ := time.LoadLocation("Local")
+			parsedTime, err := time.ParseInLocation("2006-01-02 15:04:05", l.date, loc)
+			if err != nil {
+				fmt.Println("直播时间解析出错：", err)
+				return
+			}
+			deltaTime, _ := time.ParseDuration(fmt.Sprint(parsedTime.Unix()-time.Now().Unix()) + "s")
+			formatDuration := func(seconds int64) string {
+				duration := time.Duration(seconds) * time.Second
+				days := duration / (24 * time.Hour)
+				duration -= days * (24 * time.Hour)
+				hours := duration / time.Hour
+				duration -= hours * time.Hour
+				minutes := duration / time.Minute
+				duration -= minutes * time.Minute
+				seconds = int64(duration.Seconds())
+
+				return fmt.Sprintf("距开播：%02d天%02d时%02d分%02d秒", days, hours, minutes, seconds)
+			}
+			go func() {
+				for {
+					if parsedTime.Unix()-time.Now().Unix() <= 0 {
+						fmt.Println("\n直播时间到。")
+						return
+					}
+					fmt.Printf("\r %s...", formatDuration(parsedTime.Unix()-time.Now().Unix()))
+					time.Sleep(time.Second)
+				}
+			}()
+			time.Sleep(deltaTime)
 		case "2":
 			msg = "直播已结束。"
 			if l.quickReplayURL != "" {
@@ -79,17 +123,20 @@ func (l *Live) WaitAndRecordTheLive(liveTime string, autoMerge bool) {
 			} else if l.playback == "1" {
 				msg += "快速回放暂未上线。"
 			}
+			fmt.Println(msg)
+			return
 		case "3":
 			msg = "正式回放视频已上线。"
 			if l.rtmpURL != "" {
 				vid := strings.Split(l.rtmpURL, "/")[len(strings.Split(l.rtmpURL, "/"))-1]
 				msg += fmt.Sprintf(`访问 %s 观看录播视频或使用“ks save %s”命令下载正式回放视频。`, l.rtmpURL, vid)
 			}
+			fmt.Println(msg)
+			return
 		default:
-			msg = "直播未按时开始或已结束。"
+			fmt.Println("直播未按时开始或已结束。")
+			return
 		}
-		fmt.Println(msg)
-		return
 	}
 
 	fmt.Println("运行录制程序...")
@@ -118,17 +165,24 @@ func (l *Live) checkLiveStatus() {
 		fmt.Println("Get请求出错：", err)
 	} else {
 		l.isLive = gjson.Get(str, "data.islive").String()
+		l.needPassword = gjson.Get(str, "data.lopen").String()
 	}
 }
 
 func (l *Live) getLiveByRoomID(chooseHighQuality bool) {
 	URL := "https://api.koushare.com/api/api-live/getLiveByRoomid?roomid=" + l.RoomID + "&allData=1"
+	if l.needPassword == "1" {
+		URL = fmt.Sprintf("https://api.koushare.com/api/api-live/getLiveByRoomid?roomid=%s&password=%s&allData=1",
+			l.RoomID, l.Password)
+	}
+
 	str, err := user.MyGetRequest(URL)
 	if err != nil {
 		fmt.Println("Get请求出错：", err)
 		return
 	}
 
+	l.statusCode = gjson.Get(str, "code").String()
 	l.title = gjson.Get(str, "data.ltitle").String()
 	l.date = gjson.Get(str, "data.livedate").String()
 	l.sponsor = gjson.Get(str, "data.lsponsor").String()
@@ -145,6 +199,7 @@ func (l *Live) getLiveByRoomID(chooseHighQuality bool) {
 	l.quickReplayURL = gjson.Get(str, "data.lnoticeurl").String()
 	l.rtmpURL = gjson.Get(str, "data.rtmpurl").String()
 	l.playback = gjson.Get(str, "data.playback").String()
+	l.needPassword = gjson.Get(str, "data.lopen").String()
 }
 
 // ShowLiveInfo 按照格式输出直播的基本信息
@@ -178,11 +233,19 @@ func (l *Live) ShowLiveInfo() {
 	fmt.Printf("%s (roomID=%s):\n", l.title, l.RoomID)
 	fmt.Printf("\n\t直播状态：%-17s主办单位：%s\n", liveStatus, l.sponsor)
 	fmt.Printf("\t开播时间：%-22s有无回放：%s\n", l.date, l.playback)
-	fmt.Printf("\t浏览次数：%-22s专题：%s\n\n", l.clicks, l.topicName)
-	fmt.Printf("\t最新通知：%s\n", l.notice)
+	fmt.Printf("\t浏览次数：%-22s专题：%s\n", l.clicks, l.topicName)
+	if l.needPassword == "1" {
+		fmt.Printf("\n\t※该直播间需要密码\n")
+	}
+	fmt.Printf("\n\t最新通知：%s\n", l.notice)
 }
 
 func (l *Live) recordLive(autoMerge bool) {
+	if l.m3u8URL == "" {
+		fmt.Println(color.Error("m3u8 URL 为空，无法录制。"))
+		return
+	}
+
 	var url string
 	for {
 		l.getNewTsURLBym3u8()
@@ -226,7 +289,7 @@ func (l *Live) downloadTsFile() {
 	req.Header.Set("Host", "live.am-stc.cn")
 	req.Header.Set("Origin", "https://www.koushare.com")
 	req.Header.Set("Referer", "https://www.koushare.com")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
 	resp, _ := proxy.Client.Do(req)
 	defer func() {
 		err = resp.Body.Close()
@@ -266,7 +329,7 @@ func (l *Live) downloadAndMergeTsFile() {
 	req.Header.Set("Host", "live.am-stc.cn")
 	req.Header.Set("Origin", "https://www.koushare.com")
 	req.Header.Set("Referer", "https://www.koushare.com")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
 	resp, _ := proxy.Client.Do(req)
 	defer func() {
 		err = resp.Body.Close()

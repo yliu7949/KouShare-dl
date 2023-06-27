@@ -38,9 +38,11 @@ type Video struct {
 	standardURL  string // 高清播放链接
 	url          string // 超清播放链接
 	vFiveURL     string // 加密播放链接，试看播放链接
-	statusCode   string // 获取视频信息时返回的状态码，401即需要登陆；301即需要付费；601即需要密码；200即请求成功（免费视频或已购买视频）；500即视频不存在
+	statusCode   string // 获取视频信息时返回的状态码，401即需要登录；301即需要付费；601即需要密码；200即请求成功（免费视频或已购买视频）；500即视频不存在
 	vrName       string // 视频类别，分为“付费视频”、“免费视频”和“加密视频”三类，若为空则视为“免费视频”
 	SaveDir      string
+	filename     string // 保存视频文件时使用的文件名，不包含.mp4等扩展名
+	VidPrefix    bool   // 视频文件名是否使用具体的vid作为前缀，例如vid_filename.mp4
 	videoQuality string // 实际下载视频时的清晰度，分为“标清”、“高清”和“超清”三类
 	wg           sync.WaitGroup
 }
@@ -56,7 +58,7 @@ func (v *Video) DownloadSingleVideo(quality string) {
 
 	if v.statusCode == "401" {
 		fmt.Printf("%s\tvid=%s\n", v.title, v.Vid)
-		fmt.Print(" [>>>>>>>>>>> " + color.Error("该视频需登陆，自动取消下载") + " >>>>>>>>>>>]\n\n")
+		fmt.Print(" [>>>>>>>>>>> " + color.Error("该视频需登录，自动取消下载") + " >>>>>>>>>>>]\n\n")
 		return
 	} else if v.statusCode == "301" {
 		fmt.Printf("%s\tvid=%s\n", v.title, v.Vid)
@@ -93,13 +95,23 @@ func (v *Video) DownloadSingleVideo(quality string) {
 		}
 	}
 	v.getVideoSize(URL)
+	if v.size == 0 {
+		fmt.Printf("%s\tvid=%s\n", v.title, v.Vid)
+		fmt.Print(" [>>>>>>>>>>> " + color.Highlight("该视频不存在，自动取消下载") + " >>>>>>>>>>>]\n\n")
+		return
+	}
 
 	// 过滤视频标题中的不合法字符
 	reg, _ := regexp.Compile(`[\\/:*?"<>|]`)
 	title = reg.ReplaceAllString(v.title, "")
 
+	if v.VidPrefix {
+		v.filename += v.Vid + "_"
+	}
+	v.filename += title + "_" + v.videoQuality
+
 	//若mp4文件已存在，说明该视频已下载完成。自动跳过该视频的下载。
-	if _, err := os.Stat(v.SaveDir + title + "_" + v.videoQuality + ".mp4"); err == nil {
+	if _, err := os.Stat(v.SaveDir + v.filename + ".mp4"); err == nil {
 		fmt.Printf("%s\tvid=%s\t%s\n", v.title, v.Vid, v.videoQuality)
 		fmt.Print(" [>>>>>>>>>>> " + color.Done("该视频已下载，自动跳过下载") + " >>>>>>>>>>>]\n\n")
 		return
@@ -109,7 +121,7 @@ func (v *Video) DownloadSingleVideo(quality string) {
 	var firstByte = 0
 	if tmpFileSize := v.checkTmpFileSize(); tmpFileSize != 0 {
 		if tmpFileSize == v.size {
-			err := os.Rename(v.SaveDir+title+"_"+v.videoQuality+".tmp", v.SaveDir+title+"_"+v.videoQuality+".mp4")
+			err := os.Rename(v.SaveDir+v.filename+".tmp", v.SaveDir+v.filename+".mp4")
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -133,7 +145,7 @@ func (v *Video) DownloadSingleVideo(quality string) {
 	req.Header.Set("Host", "1254321318.vod2.myqcloud.com")
 	req.Header.Set("Range", "bytes="+strconv.Itoa(firstByte)+"-")
 	req.Header.Set("Referer", v.url)
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
 	resp, _ := proxy.Client.Do(req)
 	defer func() {
 		err = resp.Body.Close()
@@ -148,7 +160,7 @@ func (v *Video) DownloadSingleVideo(quality string) {
 			return
 		}
 	}
-	fileName := v.SaveDir + title + "_" + v.videoQuality + ".tmp"
+	fileName := v.SaveDir + v.filename + ".tmp"
 	dstFile, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -236,7 +248,7 @@ func (v *Video) GetVideoInfo() bool {
 }
 
 func (v *Video) checkTmpFileSize() (size int64) {
-	fileName := v.SaveDir + title + "_" + v.videoQuality + ".tmp"
+	fileName := v.SaveDir + v.filename + ".tmp"
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
 		return 0
 	}
@@ -262,7 +274,7 @@ func (v *Video) getVideoSize(URL string) {
 	req.Header.Set("Host", "1254321318.vod2.myqcloud.com")
 	req.Header.Set("Range", "bytes=0-104857")
 	req.Header.Set("Upgrade-Insecure-Requests", "1")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
 	resp, err := proxy.Client.Do(req)
 	if err != nil || resp == nil {
 		return
@@ -295,7 +307,7 @@ func (v *Video) showBar() {
 			fmt.Printf("\r [%-50s]%s  %6.2fMB/%.2fMB\n\n", strings.Repeat(">", 50), color.Done(" 100%"),
 				float64(v.checkTmpFileSize())/1024/1024, float64(v.size)/1024/1024)
 			//将下载完成的tmp文件重命名为mp4文件
-			err := os.Rename(v.SaveDir+title+"_"+v.videoQuality+".tmp", v.SaveDir+title+"_"+v.videoQuality+".mp4")
+			err := os.Rename(v.SaveDir+v.filename+".tmp", v.SaveDir+v.filename+".mp4")
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -335,7 +347,7 @@ func (v *Video) ShowVideoInfo() {
 	}
 
 	if v.videoTime == "" {
-		v.videoTime = "Unknown"
+		v.videoTime = "Unknown "
 	}
 	if v.abstract == "" {
 		v.abstract = "(无)"
