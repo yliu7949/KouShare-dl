@@ -49,7 +49,7 @@ func SaveCmd() *cobra.Command {
 	var cmdSave = &cobra.Command{
 		Use:   "save [vid]",
 		Short: "保存指定vid的视频",
-		Long:  `保存指定vid的视频到本地计算机，未登录时仅可下载标清视频，登录后可以下载更高清晰度的视频. 仅能下载已购买的付费视频.`,
+		Long:  `保存指定vid的视频到本地计算机，未登录时仅可下载标清视频，登录后可以下载更高清晰度的免费视频. 此外仅能下载已购买的付费视频.`,
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			v.Vid = args[0]
@@ -81,7 +81,7 @@ func SaveBatchCmd() *cobra.Command {
 	var cmdSaveBatch = &cobra.Command{
 		Use:   "batch [vids]",
 		Short: "批量保存指定vid的视频",
-		Long:  `批量保存指定vid的视频到本地计算机，仅能下载已购买的付费视频.`,
+		Long:  `批量保存指定vid的视频到本地计算机，可以下载不同清晰度的免费视频，但仅能下载已购买的付费视频.`,
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			b.Vids = args[0]
