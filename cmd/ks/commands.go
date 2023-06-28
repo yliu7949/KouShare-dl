@@ -238,13 +238,13 @@ func LogoutCmd() *cobra.Command {
 	return cmdLogout
 }
 
-// CleanCmd 清除指定目录下的所有临时文件
+// CleanCmd 清理指定目录下的所有临时文件
 func CleanCmd() *cobra.Command {
 	var quiet bool
 	var cmdClean = &cobra.Command{
 		Use:   "clean",
-		Short: "清除指定目录下的所有tmp临时文件",
-		Long:  `清除指定目录下的所有tmp临时文件.`,
+		Short: "清理指定目录下的所有tmp临时文件",
+		Long:  `清理指定目录下的所有tmp临时文件.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			if path[len(path)-1:] != `\` && path[len(path)-1:] != "/" {
 				path = path + "/"
@@ -264,7 +264,7 @@ func CleanCmd() *cobra.Command {
 						continue
 					}
 					if !quiet {
-						fmt.Println("已清除文件：", file.Name())
+						fmt.Println("已清理文件：", file.Name())
 					}
 				}
 			}
