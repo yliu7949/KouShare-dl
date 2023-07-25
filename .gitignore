@@ -5,6 +5,7 @@
 *.pdf
 
 *.exe
+/ks
 *.old
 *.token
 *.txt
