@@ -106,9 +106,10 @@ func (v *Video) DownloadSingleVideo(quality string) {
 	title = reg.ReplaceAllString(v.title, "")
 
 	if v.VidPrefix {
-		v.filename += v.Vid + "_"
+		v.filename = v.Vid + "_" + title + "_" + v.videoQuality
+	} else {
+		v.filename = title + "_" + v.videoQuality
 	}
-	v.filename += title + "_" + v.videoQuality
 
 	//若mp4文件已存在，说明该视频已下载完成。自动跳过该视频的下载。
 	if _, err := os.Stat(v.SaveDir + v.filename + ".mp4"); err == nil {
