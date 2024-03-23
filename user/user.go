@@ -1,6 +1,8 @@
 package user
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -158,10 +160,67 @@ func MyGetRequest(url string, headers ...map[string]string) (string, error) {
 		return "", err
 	}
 	req.Header.Set("Accept", "application/json, text/plain, */*")
-	req.Header.Set("Accept-Encoding", "gzip, deflate, br")
-	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9")
+	req.Header.Set("Accept-Encoding", "gzip, deflate, br, zstd")
+	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
 	req.Header.Set("Referer", "https://www.koushare.com/")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")
+	req.Header.Set("Sec-CH-UA", `"Google Chrome";v="123", "Not:A-Brand";v="8", "Chromium";v="123"`)
+	req.Header.Set("Sec-CH-UA-Mobile", "?0")
+	req.Header.Set("Sec-CH-UA-Platform", `"macOS"`)
+	req.Header.Set("Sec-Fetch-Dest", "empty")
+	req.Header.Set("Sec-Fetch-Mode", "cors")
+	req.Header.Set("Sec-Fetch-Site", "same-site")
+	req.Header.Set("Origin", "https://www.koushare.com")
+	req.Header.Set("Client", "front")
+	if u.LoginState == 1 { //如果token有效，则添加cookie请求头
+		req.Header.Set("Cookie", "Token="+u.Token)
+	}
+	if len(headers) != 0 {
+		for key, value := range headers[0] {
+			req.Header.Set(key, value)
+		}
+	}
+
+	resp, err := proxy.Client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+// MyPostRequest 这是一个自定义的Post请求，约定：可变参数headers仅允许传入一个设置header的map。
+// body为POST请求的载荷
+func MyPostRequest(url string, body map[string]string, headers ...map[string]string) (string, error) {
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		return "", err
+	}
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(bodyBytes))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Accept", "application/json, text/plain, */*")
+	req.Header.Set("Accept-Encoding", "gzip, deflate, br, zstd")
+	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Referer", "https://www.koushare.com/")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")
+	req.Header.Set("Sec-CH-UA", `"Google Chrome";v="123", "Not:A-Brand";v="8", "Chromium";v="123"`)
+	req.Header.Set("Sec-CH-UA-Mobile", "?0")
+	req.Header.Set("Sec-CH-UA-Platform", `"macOS"`)
+	req.Header.Set("Sec-Fetch-Dest", "empty")
+	req.Header.Set("Sec-Fetch-Mode", "cors")
+	req.Header.Set("Sec-Fetch-Site", "same-site")
+	req.Header.Set("Origin", "https://www.koushare.com")
+	req.Header.Set("Client", "front")
 	if u.LoginState == 1 { //如果token有效，则添加cookie请求头
 		req.Header.Set("Cookie", "Token="+u.Token)
 	}

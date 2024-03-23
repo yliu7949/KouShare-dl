@@ -20,13 +20,14 @@ var path string
 func InfoCmd() *cobra.Command {
 	var v video.Video
 	var l live.Live
+	var isLive bool
 	var cmdInfo = &cobra.Command{
 		Use:   "info [vid]",
 		Short: "获取视频或直播的基本信息",
-		Long:  `获取视频的基本信息，如讲者、拍摄日期、视频大小、视频摘要等内容；获取直播的基本信息，如开播时间、主办方、有无回放等内容.`,
+		Long:  `获取视频的基本信息，如讲者、拍摄日期、视频大小、视频摘要等内容；使用 -l 标志获取直播的基本信息，如开播时间、主办方、有无回放等内容.`,
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			if len(args[0]) == 6 {
+			if isLive {
 				l.RoomID = args[0]
 				l.ShowLiveInfo()
 			} else {
@@ -36,6 +37,7 @@ func InfoCmd() *cobra.Command {
 		},
 	}
 
+	cmdInfo.PersistentFlags().BoolVarP(&isLive, "live", "l", false, "获取直播的基本信息")
 	return cmdInfo
 }
 
