@@ -1,13 +1,15 @@
 package proxy
 
 import (
-	"crypto/tls"
 	"log"
 	"net/http"
 	"net/url"
+	"time"
 )
 
-var Client = http.Client{}
+var Client = http.Client{
+	Transport: defaultTransport(http.ProxyFromEnvironment),
+}
 
 func EnableProxy(proxyURL string) {
 	proxyFunc := http.ProxyFromEnvironment
@@ -20,11 +22,14 @@ func EnableProxy(proxyURL string) {
 	}
 
 	Client = http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-			Proxy: proxyFunc,
-		},
+		Transport: defaultTransport(proxyFunc),
 	}
+}
+
+func defaultTransport(proxyFunc func(*http.Request) (*url.URL, error)) *http.Transport {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = proxyFunc
+	transport.ResponseHeaderTimeout = 30 * time.Second
+	transport.IdleConnTimeout = 90 * time.Second
+	return transport
 }

@@ -1,11 +1,12 @@
 package ks
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/yliu7949/KouShare-dl/live"
@@ -20,13 +21,14 @@ var path string
 func InfoCmd() *cobra.Command {
 	var v video.Video
 	var l live.Live
+	var isLive bool
 	var cmdInfo = &cobra.Command{
 		Use:   "info [vid]",
 		Short: "获取视频或直播的基本信息",
-		Long:  `获取视频的基本信息，如讲者、拍摄日期、视频大小、视频摘要等内容；获取直播的基本信息，如开播时间、主办方、有无回放等内容.`,
+		Long:  `获取视频的基本信息，如讲者、拍摄日期、视频摘要等内容；使用 --live 获取直播信息。`,
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			if len(args[0]) == 6 {
+			if isLive {
 				l.RoomID = args[0]
 				l.ShowLiveInfo()
 			} else {
@@ -35,6 +37,7 @@ func InfoCmd() *cobra.Command {
 			}
 		},
 	}
+	cmdInfo.Flags().BoolVarP(&isLive, "live", "l", false, "将 ID 作为新版直播 ID 查询")
 
 	return cmdInfo
 }
@@ -42,6 +45,8 @@ func InfoCmd() *cobra.Command {
 var quality string
 var isSeries bool
 var vidPrefix bool
+var segmentConcurrency int
+var videoConcurrency int
 
 // SaveCmd 保存指定vid的视频
 func SaveCmd() *cobra.Command {
@@ -53,11 +58,9 @@ func SaveCmd() *cobra.Command {
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			v.Vid = args[0]
-			if path[len(path)-1:] != `\` && path[len(path)-1:] != "/" {
-				path = path + "/"
-			}
-			v.SaveDir = path
+			v.SaveDir = normalizedDirectory(path)
 			v.VidPrefix = vidPrefix
+			v.Concurrency = segmentConcurrency
 			if isSeries {
 				v.DownloadSeriesVideos(quality)
 			} else {
@@ -70,6 +73,8 @@ func SaveCmd() *cobra.Command {
 	cmdSave.PersistentFlags().BoolVarP(&isSeries, "series", "s", false, "指定是否下载专题视频")
 	cmdSave.PersistentFlags().StringVarP(&quality, "quality", "q", `high`, "指定下载视频的清晰度（high、standard或low）")
 	cmdSave.PersistentFlags().BoolVarP(&vidPrefix, "vidPrefix", "v", false, "指定是否使用vid作为保存视频文件名的前缀")
+	cmdSave.PersistentFlags().IntVarP(&segmentConcurrency, "concurrency", "c", 12, "单个视频同时下载的 HLS 片段数")
+	cmdSave.PersistentFlags().IntVar(&videoConcurrency, "video-concurrency", 3, "批量模式同时下载的视频数")
 	cmdSave.AddCommand(SaveBatchCmd())
 
 	return cmdSave
@@ -85,13 +90,12 @@ func SaveBatchCmd() *cobra.Command {
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			b.Vids = args[0]
-			if path[len(path)-1:] != `\` && path[len(path)-1:] != "/" {
-				path = path + "/"
-			}
-			b.SaveDir = path
+			b.SaveDir = normalizedDirectory(path)
 			b.Quality = quality
 			b.IsSeries = isSeries
 			b.VidPrefix = vidPrefix
+			b.Concurrency = segmentConcurrency
+			b.VideoConcurrency = videoConcurrency
 			b.DownloadMultiVideos()
 		},
 	}
@@ -114,10 +118,7 @@ func RecordCmd() *cobra.Command {
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			l.RoomID = args[0]
-			if path[len(path)-1:] != `\` && path[len(path)-1:] != "/" {
-				path = path + "/"
-			}
-			l.SaveDir = path
+			l.SaveDir = normalizedDirectory(path)
 			l.Password = password
 			if !replay {
 				l.WaitAndRecordTheLive(liveTime, autoMerge)
@@ -146,12 +147,9 @@ func MergeCmd() *cobra.Command {
 		Args:  cobra.MinimumNArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) == 0 {
-				path = "./"
+				path = "."
 			} else {
-				path = args[0]
-				if path[len(path)-1:] != `\` && path[len(path)-1:] != "/" {
-					path = path + "/"
-				}
+				path = normalizedDirectory(args[0])
 			}
 			live.MergeTsFiles(path, dstFileName)
 		},
@@ -173,14 +171,9 @@ func SlideCmd() *cobra.Command {
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			s.Vid = args[0]
-			if path[len(path)-1:] != `\` && path[len(path)-1:] != "/" {
-				path = path + "/"
-			}
-			s.SaveDir = path
+			s.SaveDir = normalizedDirectory(path)
 			if qpdfBinPath != "" {
-				if qpdfBinPath[len(qpdfBinPath)-1:] != `\` && qpdfBinPath[len(qpdfBinPath)-1:] != "/" {
-					qpdfBinPath = qpdfBinPath + "/"
-				}
+				qpdfBinPath = normalizedDirectory(qpdfBinPath) + string(os.PathSeparator)
 			}
 			s.QpdfPath = qpdfBinPath
 			if isSeries {
@@ -197,27 +190,57 @@ func SlideCmd() *cobra.Command {
 	return cmdSlide
 }
 
-// LoginCmd 通过短信验证码获取“蔻享学术”登录凭证
+// LoginCmd 打开浏览器并保存用户正常登录后获得的 Cookie。
 func LoginCmd() *cobra.Command {
 	var u user.User
+	var accessToken string
+	var refreshToken string
+	var harPath string
+	var browserPath string
+	var loginTimeout time.Duration
+	var validFor time.Duration
 	var cmdLogin = &cobra.Command{
 		Use:   "login [phone number]",
-		Short: "通过短信验证码获取“蔻享学术”登录凭证",
-		Long:  `[phone number]参数为手机号码（格式15012345678），输入短信验证码以登录“蔻享学术”平台并将登录凭证保存至本地.登录后一周内免再次登录.`,
-		Args:  cobra.MinimumNArgs(1),
+		Short: "登录蔻享账户并保存凭证",
+		Long: `不带参数时打开专用 Chrome 窗口进行网页登录，并自动保存登录 Cookie。
+带手机号时保留旧版终端习惯：在正常 Chrome 中完成人机验证并发送短信，然后回到命令行
+输入 6 位短信验证码。程序不会尝试绕过或代替网站要求的人机验证。`,
+		Args: cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			re := regexp.MustCompile(`1[3-9]\d{9}`)
-			if !re.MatchString(args[0]) {
-				fmt.Println("手机号码格式不正确")
-				return
+			phone := ""
+			if len(args) == 1 {
+				phone = args[0]
 			}
-			u.PhoneNumber = args[0]
-			if err := u.Login(); err != nil {
+			var err error
+			if harPath != "" {
+				err = u.ImportTokensFromHAR(harPath)
+			} else if accessToken != "" || refreshToken != "" {
+				err = u.ImportTokens(accessToken, refreshToken, validFor)
+			} else if os.Getenv(user.AccessTokenEnv) != "" {
+				err = u.ImportTokensFromEnvironment(validFor)
+			} else {
+				loginContext, cancel := context.WithTimeout(cmd.Context(), loginTimeout)
+				defer cancel()
+				if phone != "" {
+					err = u.LoginWithPhone(loginContext, phone, browserPath, os.Stdin, cmd.OutOrStdout())
+				} else {
+					fmt.Fprintln(cmd.OutOrStdout(), "Chrome 已打开。请在网页中完成登录，命令行正在等待登录 Cookie……")
+					err = u.LoginWithBrowser(loginContext, browserPath)
+				}
+			}
+			if err != nil {
 				fmt.Println("登录失败：", err)
 				return
 			}
+			fmt.Println("登录成功，凭证已安全保存。")
 		},
 	}
+	cmdLogin.Flags().StringVar(&accessToken, "access-token", "", "网页端 accessToken（建议改用环境变量）")
+	cmdLogin.Flags().StringVar(&refreshToken, "refresh-token", "", "网页端 refreshToken（可选）")
+	cmdLogin.Flags().StringVar(&harPath, "har", "", "兼容选项：从登录后的 HAR 导入令牌")
+	cmdLogin.Flags().StringVar(&browserPath, "browser-path", "", "Chrome/Chromium 可执行文件路径（默认自动查找）")
+	cmdLogin.Flags().DurationVar(&loginTimeout, "timeout", 10*time.Minute, "等待浏览器登录的最长时间")
+	cmdLogin.Flags().DurationVar(&validFor, "expires-in", 30*24*time.Hour, "令牌剩余有效期")
 
 	return cmdLogin
 }
@@ -246,10 +269,7 @@ func CleanCmd() *cobra.Command {
 		Short: "清理指定目录下的所有tmp临时文件",
 		Long:  `清理指定目录下的所有tmp临时文件.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			if path[len(path)-1:] != `\` && path[len(path)-1:] != "/" {
-				path = path + "/"
-			}
-
+			path = normalizedDirectory(path)
 			files, err := os.ReadDir(path)
 			if err != nil {
 				fmt.Println("读取目录错误：", err.Error())
@@ -273,4 +293,11 @@ func CleanCmd() *cobra.Command {
 	cmdClean.Flags().StringVarP(&path, "path", "p", `.`, "指定清理临时文件的路径")
 	cmdClean.Flags().BoolVarP(&quiet, "quiet", "q", false, "指定是否不输出清理过程中的信息")
 	return cmdClean
+}
+
+func normalizedDirectory(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return "."
+	}
+	return filepath.Clean(value)
 }

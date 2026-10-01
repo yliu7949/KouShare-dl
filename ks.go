@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	//"github.com/pkg/profile"
 	"github.com/spf13/cobra"
@@ -31,7 +32,9 @@ func main() {
 
 	rootCmd.PersistentFlags().BoolVar(&noColor, "nocolor", false, "指定是否不使用彩色输出")
 	rootCmd.PersistentFlags().StringVarP(&proxyURL, "proxy", "P", "", "指定使用的http/https/socks5代理服务地址")
-	_ = rootCmd.Execute()
+	if err := rootCmd.Execute(); err != nil {
+		os.Exit(1)
+	}
 }
 
 // VersionCmd 输出KouSHare-dl的版本号，并检查最新版本

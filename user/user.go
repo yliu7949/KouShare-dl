@@ -1,26 +1,66 @@
 package user
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/tidwall/gjson"
-	"github.com/yliu7949/KouShare-dl/internal/proxy"
 )
 
-// User 用户，包含手机号码、依据token文件判断的登录状态和token的值
+const (
+	AccessTokenEnv  = "KOUSHARE_ACCESS_TOKEN"
+	RefreshTokenEnv = "KOUSHARE_REFRESH_TOKEN"
+)
+
+// User represents locally imported credentials. The current website requires
+// an interactive captcha before it sends an SMS. KouShare-dl therefore accepts
+// tokens obtained after a normal browser login instead of trying to automate
+// or bypass that challenge.
 type User struct {
-	PhoneNumber string
-	LoginState  int //无token文件则为0；token过期则为-1；token有效则为1
-	Token       string
+	LoginState   int
+	Token        string
+	RefreshToken string
+	ExpiresAt    time.Time
+}
+
+type credentialFile struct {
+	AccessToken  string    `json:"access_token"`
+	RefreshToken string    `json:"refresh_token,omitempty"`
+	ExpiresAt    time.Time `json:"expires_at"`
+}
+
+type harFile struct {
+	Log struct {
+		Entries []struct {
+			Request struct {
+				Method string `json:"method"`
+				URL    string `json:"url"`
+			} `json:"request"`
+			Response struct {
+				Content struct {
+					Text string `json:"text"`
+				} `json:"content"`
+			} `json:"response"`
+		} `json:"entries"`
+	} `json:"log"`
+}
+
+type phoneLoginResponse struct {
+	Code int `json:"code"`
+	Data struct {
+		Data struct {
+			AccessToken     string `json:"access_token"`
+			RefreshToken    string `json:"refresh_token"`
+			ExpireIn        int64  `json:"expire_in"`
+			RefreshExpireIn int64  `json:"refresh_expire_in"`
+		} `json:"data"`
+	} `json:"data"`
 }
 
 var tokenFileName string
@@ -37,151 +77,153 @@ func init() {
 	u.LoadToken()
 }
 
-// LoadToken 检查token文件并更新LoginState和Token
+// LoadToken loads the current JSON credential format and the legacy
+// "token unix-time" format used by releases before v1.
 func (u *User) LoadToken() {
-	// 判断token文件是否存在
-	if _, err := os.Stat(tokenFileName); err == nil {
-		f, err := os.ReadFile(tokenFileName)
-		if err != nil {
-			fmt.Println(err)
+	u.LoginState = 0
+	u.Token = ""
+	u.RefreshToken = ""
+	u.ExpiresAt = time.Time{}
+
+	data, err := os.ReadFile(tokenFileName)
+	if err != nil {
+		return
+	}
+	var stored credentialFile
+	if json.Unmarshal(data, &stored) == nil && stored.AccessToken != "" {
+		u.Token = stored.AccessToken
+		u.RefreshToken = stored.RefreshToken
+		u.ExpiresAt = stored.ExpiresAt
+	} else {
+		parts := strings.Fields(string(data))
+		if len(parts) < 2 {
 			return
 		}
-		text := strings.Split(string(f), " ")
-
-		// 若token过期，则需要重新登录获取token
-		if t, _ := strconv.Atoi(text[1]); time.Now().Unix()-int64(t) > 604800 {
-			u.LoginState = -1
-			fmt.Printf("凭证过期，需要重新登录。\n\n")
-		} else {
-			u.LoginState = 1
-			u.Token = text[0]
-			fmt.Printf("登录凭证有效。\n\n")
+		expiresUnix, parseErr := strconv.ParseInt(parts[1], 10, 64)
+		if parseErr != nil {
+			return
 		}
-	} else {
-		u.LoginState = 0
+		u.Token = parts[0]
+		u.ExpiresAt = time.Unix(expiresUnix, 0)
 	}
+	if u.Token == "" {
+		return
+	}
+	if !u.ExpiresAt.IsZero() && time.Now().After(u.ExpiresAt) {
+		u.LoginState = -1
+		return
+	}
+	u.LoginState = 1
 }
 
-// Login 使用短信验证码的方式登录“蔻享学术”平台，登录成功后获得token，并将token保存在可执行文件所在路径下的token文件中
-func (u *User) Login() error {
-	URL := "https://login.koushare.com/api/api-user/"
-	res1, err := proxy.Client.PostForm(URL+"sendSms", url.Values{"phone": {u.PhoneNumber}, "scope": {"LOGIN"}})
-	if err != nil {
+func (u *User) ImportTokens(accessToken, refreshToken string, validFor time.Duration) error {
+	accessToken = strings.TrimSpace(accessToken)
+	if accessToken == "" {
+		return errors.New("访问令牌不能为空")
+	}
+	if validFor <= 0 {
+		return errors.New("令牌有效期必须大于 0")
+	}
+	stored := credentialFile{
+		AccessToken:  accessToken,
+		RefreshToken: strings.TrimSpace(refreshToken),
+		ExpiresAt:    time.Now().Add(validFor),
+	}
+	if err := saveCredentials(stored); err != nil {
 		return err
 	}
-	body, err := io.ReadAll(res1.Body)
-	res1.Body.Close()
-	if err != nil {
-		return err
-	}
-	if res1.StatusCode == 200 && gjson.Get(string(body), "code").String() == "200" {
-		fmt.Printf("短信验证码发送成功，请输入6位验证码：")
-		var verifyCode string
-		_, err = fmt.Scan(&verifyCode)
-		if err != nil {
-			return err
-		}
-
-		res2, err := proxy.Client.PostForm(URL+"smsLogin", url.Values{"phone": {u.PhoneNumber}, "key": {verifyCode}, "rm": {"1"}})
-		if err != nil {
-			return err
-		}
-		body, err = io.ReadAll(res2.Body)
-		res2.Body.Close()
-		if err != nil {
-			return err
-		}
-		if res2.StatusCode == 200 && gjson.Get(string(body), "code").String() == "200" {
-			fmt.Println("登录成功。")
-			if len(res2.Cookies()) == 1 {
-				cookie := *(res2.Cookies()[0])
-				u.Token = cookie.Value
-				u.LoginState = 1
-				if err = saveToken(cookie); err != nil {
-					fmt.Println("警告！保存token文件时遇到了问题：", err)
-				} else {
-					fmt.Println("token文件保存成功。")
-				}
-			}
-		}
-	} else {
-		fmt.Println(gjson.Get(string(body), "msg").String())
-	}
+	u.Token = stored.AccessToken
+	u.RefreshToken = stored.RefreshToken
+	u.ExpiresAt = stored.ExpiresAt
+	u.LoginState = 1
+	globalSync(*u)
 	return nil
 }
 
-// Logout 删除token文件，并更新LoginState为0
+func (u *User) ImportTokensFromEnvironment(validFor time.Duration) error {
+	return u.ImportTokens(os.Getenv(AccessTokenEnv), os.Getenv(RefreshTokenEnv), validFor)
+}
+
+// ImportTokensFromHAR reuses a session that the user obtained by completing
+// the website's normal interactive login. It never submits or solves a
+// captcha. HAR files contain sensitive data and must not be shared publicly.
+func (u *User) ImportTokensFromHAR(filename string) error {
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	var archive harFile
+	decoder := json.NewDecoder(io.LimitReader(file, 512<<20))
+	if err := decoder.Decode(&archive); err != nil {
+		return fmt.Errorf("解析 HAR: %w", err)
+	}
+	for index := len(archive.Log.Entries) - 1; index >= 0; index-- {
+		entry := archive.Log.Entries[index]
+		if entry.Request.Method != "POST" || !strings.Contains(entry.Request.URL, "/iam/userLogin/phoneLogin") {
+			continue
+		}
+		var response phoneLoginResponse
+		if err := json.Unmarshal([]byte(entry.Response.Content.Text), &response); err != nil {
+			continue
+		}
+		if response.Code != 200000 || response.Data.Data.AccessToken == "" {
+			continue
+		}
+		validFor := time.Duration(response.Data.Data.ExpireIn) * time.Millisecond
+		if validFor <= 0 || validFor > 365*24*time.Hour {
+			return fmt.Errorf("HAR 中的访问令牌有效期无效")
+		}
+		return u.ImportTokens(response.Data.Data.AccessToken, response.Data.Data.RefreshToken, validFor)
+	}
+	return errors.New("HAR 中没有找到成功的新版网页登录响应")
+}
+
 func (u *User) Logout() {
-	if _, err := os.Stat(tokenFileName); err == nil {
-		_ = os.Remove(tokenFileName)
+	if err := os.Remove(tokenFileName); err != nil && !os.IsNotExist(err) {
+		fmt.Println("删除登录凭证失败：", err)
+		return
 	}
 	u.LoginState = 0
+	u.Token = ""
+	u.RefreshToken = ""
+	u.ExpiresAt = time.Time{}
+	globalSync(*u)
 	fmt.Println("已删除登录凭证")
 }
 
-// GetLoginState 返回LoginState的值；有效登录则为1，否则为0或-1
 func GetLoginState() int {
 	return u.LoginState
 }
 
-func saveToken(cookie http.Cookie) error {
-	// 若token文件存在，则删除该文件
-	if _, err := os.Stat(tokenFileName); err == nil {
-		err = os.Remove(tokenFileName)
-		if err != nil {
-			return err
-		}
+func AccessToken() string {
+	if u.LoginState != 1 {
+		return ""
 	}
+	return u.Token
+}
 
-	f, err := os.OpenFile(tokenFileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+func Current() User {
+	return u
+}
+
+func globalSync(imported User) {
+	u = imported
+}
+
+func saveCredentials(stored credentialFile) error {
+	data, err := json.MarshalIndent(stored, "", "  ")
 	if err != nil {
 		return err
 	}
-	if _, err = f.WriteString(fmt.Sprintf("%s %d", cookie.Value, cookie.Expires.Unix())); err != nil {
-		_ = f.Close()
+	if err := os.WriteFile(tokenFileName, data, 0600); err != nil {
 		return err
 	}
-	if err = f.Close(); err != nil {
+	if err := os.Chmod(tokenFileName, 0600); err != nil && runtime.GOOS != "windows" {
 		return err
 	}
-	// 设置“ks.token”文件为隐藏文件
-	if err = hideFile(tokenFileName); err != nil {
+	if err := hideFile(tokenFileName); err != nil {
 		return err
 	}
 	return nil
-}
-
-// MyGetRequest 这是一个自定义的Get请求，约定：可变参数headers仅允许传入一个设置header的map。
-func MyGetRequest(url string, headers ...map[string]string) (string, error) {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Accept", "application/json, text/plain, */*")
-	req.Header.Set("Accept-Encoding", "gzip, deflate, br")
-	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9")
-	req.Header.Set("Referer", "https://www.koushare.com/")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
-	if u.LoginState == 1 { //如果token有效，则添加cookie请求头
-		req.Header.Set("Cookie", "Token="+u.Token)
-	}
-	if len(headers) != 0 {
-		for key, value := range headers[0] {
-			req.Header.Set(key, value)
-		}
-	}
-
-	resp, err := proxy.Client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
 }
