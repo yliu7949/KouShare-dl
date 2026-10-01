@@ -352,7 +352,7 @@ func (c *Client) doExpected(ctx context.Context, method, path string, query url.
 	timestamp := c.now().UnixMilli()
 	req.Header.Set("Accept", "application/json, text/plain, */*")
 	req.Header.Set("Client", "front_web")
-	req.Header.Set("Ks-Sign", signature(params, method, timestamp))
+	req.Header.Set("Ks-Sign", Signature(params, method, timestamp))
 	req.Header.Set("Ks-Timestamp", strconv.FormatInt(timestamp, 10))
 	req.Header.Set("Origin", "https://www.koushare.com")
 	req.Header.Set("Referer", "https://www.koushare.com/")
@@ -402,7 +402,9 @@ func (c *Client) doExpected(ctx context.Context, method, path string, query url.
 	return nil
 }
 
-func signature(params map[string]any, method string, timestamp int64) string {
+// Signature produces the checksum required by KouShare's private wire protocol.
+// It is exported only within this repository because the package is internal.
+func Signature(params map[string]any, method string, timestamp int64) string {
 	keys := make([]string, 0, len(params))
 	for key, value := range params {
 		if value == nil || value == "" {

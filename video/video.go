@@ -7,14 +7,13 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/yliu7949/KouShare-dl/internal/hls"
 	"github.com/yliu7949/KouShare-dl/internal/koushare"
 	"github.com/yliu7949/KouShare-dl/internal/proxy"
+	"github.com/yliu7949/KouShare-dl/internal/videoopts"
 	"github.com/yliu7949/KouShare-dl/user"
 )
 
@@ -60,7 +59,7 @@ func (v *Video) DownloadSingleVideo(quality string) {
 	if qualityName == "" {
 		qualityName = qualityLabel(stream.Height)
 	}
-	baseName := sanitizeFilename(v.info.Title)
+	baseName := videoopts.SanitizeFilename(v.info.Title)
 	if baseName == "" {
 		baseName = "video_" + v.Vid
 	}
@@ -95,34 +94,7 @@ func (v *Video) selectStream(quality string) (koushare.VideoStream, error) {
 	if len(streams) == 0 {
 		return koushare.VideoStream{}, fmt.Errorf("API 未返回可下载的视频流")
 	}
-	return chooseVideoStream(streams, quality)
-}
-
-func chooseVideoStream(streams []koushare.VideoStream, quality string) (koushare.VideoStream, error) {
-	sort.SliceStable(streams, func(i, j int) bool {
-		return streams[i].Height > streams[j].Height
-	})
-	limit := 1 << 30
-	switch strings.ToLower(quality) {
-	case "low":
-		limit = 480
-	case "standard":
-		limit = 720
-	case "high", "":
-	default:
-		return koushare.VideoStream{}, fmt.Errorf("未知清晰度 %q（可选 high、standard、low）", quality)
-	}
-	for _, stream := range streams {
-		if stream.FileURL != "" && stream.Height <= limit {
-			return stream, nil
-		}
-	}
-	for index := len(streams) - 1; index >= 0; index-- {
-		if streams[index].FileURL != "" {
-			return streams[index], nil
-		}
-	}
-	return koushare.VideoStream{}, fmt.Errorf("所有视频流地址均为空")
+	return videoopts.ChooseStream(streams, quality)
 }
 
 func (v *Video) downloadHLS(playlistURL, quality, baseName string) {
@@ -221,7 +193,7 @@ func (v *Video) DownloadSeriesVideos(quality string) {
 		v.DownloadSingleVideo(quality)
 		return
 	}
-	directory := sanitizeFilename(series.SeriesName) + "_videos"
+	directory := videoopts.SanitizeFilename(series.SeriesName) + "_videos"
 	if directory == "_videos" {
 		directory = "series_" + v.Vid + "_videos"
 	}
@@ -260,11 +232,6 @@ func (v *Video) ShowVideoInfo() {
 	fmt.Printf("\t日期：%-22s单位：%s\n", date, affiliation)
 	fmt.Printf("\t地点：%-22s课件：%s\n", emptyAs(v.info.ReportingLocation, "未知"), yesNo(v.info.CoursewareURL != ""))
 	fmt.Printf("\n\t视频简介：%s\n\n", abstract)
-}
-
-func sanitizeFilename(name string) string {
-	invalid := regexp.MustCompile(`[\\/:*?"<>|\x00-\x1f]`)
-	return strings.TrimSpace(invalid.ReplaceAllString(name, ""))
 }
 
 func qualityLabel(height int) string {

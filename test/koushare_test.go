@@ -1,4 +1,4 @@
-package koushare
+package test
 
 import (
 	"context"
@@ -9,11 +9,12 @@ import (
 	"net/url"
 	"reflect"
 	"testing"
-	"time"
+
+	"github.com/yliu7949/KouShare-dl/internal/koushare"
 )
 
 func TestSignatureMatchesHAR(t *testing.T) {
-	got := signature(map[string]any{"id": "226895"}, http.MethodGet, 1790845396925)
+	got := koushare.Signature(map[string]any{"id": "226895"}, http.MethodGet, 1790845396925)
 	const want = "64118c2789a524182fb6088e7c7d365e"
 	if got != want {
 		t.Fatalf("signature = %q, want %q", got, want)
@@ -21,7 +22,7 @@ func TestSignatureMatchesHAR(t *testing.T) {
 }
 
 func TestSignatureIgnoresEmptyValuesLikeWebClient(t *testing.T) {
-	got := signature(map[string]any{"videoId": "226895", "ticket": ""}, http.MethodGet, 1790845398557)
+	got := koushare.Signature(map[string]any{"videoId": "226895", "ticket": ""}, http.MethodGet, 1790845398557)
 	const want = "1501b84def82ac0932efb9aaeea30c8d"
 	if got != want {
 		t.Fatalf("signature = %q, want %q", got, want)
@@ -29,7 +30,7 @@ func TestSignatureIgnoresEmptyValuesLikeWebClient(t *testing.T) {
 }
 
 func TestSignatureMatchesHAREmptyPost(t *testing.T) {
-	got := signature(map[string]any{}, http.MethodPost, 1790845412582)
+	got := koushare.Signature(map[string]any{}, http.MethodPost, 1790845412582)
 	const want = "4d58c6a28d3312cb42298bba1c2c12a2"
 	if got != want {
 		t.Fatalf("signature = %q, want %q", got, want)
@@ -37,7 +38,7 @@ func TestSignatureMatchesHAREmptyPost(t *testing.T) {
 }
 
 func TestSignaturePreservesPasswordProtocolCompatibility(t *testing.T) {
-	got := signature(map[string]any{
+	got := koushare.Signature(map[string]any{
 		"id":       "226845",
 		"password": "live-room-password",
 	}, http.MethodPost, 1790845412582)
@@ -93,7 +94,7 @@ func TestSendLoginSMSAPI(t *testing.T) {
 		}
 		writeJSON(t, w, `{"code":200000,"msg":"操作成功","data":true}`)
 	})
-	err := client.SendLoginSMS(context.Background(), "13800138000", CaptchaConfig{CaptchaAppID: "app-id"}, "ticket", "@rand")
+	err := client.SendLoginSMS(context.Background(), "13800138000", koushare.CaptchaConfig{CaptchaAppID: "app-id"}, "ticket", "@rand")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -238,13 +239,12 @@ func TestAPIError(t *testing.T) {
 	}
 }
 
-func testClient(t *testing.T, handler http.HandlerFunc) *Client {
+func testClient(t *testing.T, handler http.HandlerFunc) *koushare.Client {
 	t.Helper()
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
-	client := NewClient(server.Client(), "test-token")
+	client := koushare.NewClient(server.Client(), "test-token")
 	client.BaseURL = server.URL
-	client.now = func() time.Time { return time.UnixMilli(1790845396925) }
 	return client
 }
 

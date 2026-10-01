@@ -1,10 +1,12 @@
-package ks
+package test
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/spf13/cobra"
+	cmdks "github.com/yliu7949/KouShare-dl/cmd/ks"
 )
 
 func TestLegacyCommandAliasesAndFlags(t *testing.T) {
@@ -20,10 +22,10 @@ func TestLegacyCommandAliasesAndFlags(t *testing.T) {
 	}
 
 	commands := map[string]commandFactory{
-		"save":   SaveCmd,
-		"record": RecordCmd,
-		"merge":  MergeCmd,
-		"slide":  SlideCmd,
+		"save":   cmdks.SaveCmd,
+		"record": cmdks.RecordCmd,
+		"merge":  cmdks.MergeCmd,
+		"slide":  cmdks.SlideCmd,
 	}
 	for _, test := range tests {
 		command := commands[test.name]()
@@ -40,13 +42,32 @@ func TestLegacyCommandAliasesAndFlags(t *testing.T) {
 	}
 }
 
-func TestNormalizedDirectory(t *testing.T) {
-	if got := normalizedDirectory(""); got != "." {
-		t.Fatalf("normalizedDirectory(empty) = %q", got)
+func TestEmptyPathUsesCurrentDirectory(t *testing.T) {
+	directory := t.TempDir()
+	originalDirectory, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
 	}
-	want := filepath.Join("parent", "child")
-	if got := normalizedDirectory("parent/child/"); got != want {
-		t.Fatalf("normalizedDirectory = %q, want %q", got, want)
+	if err := os.Chdir(directory); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(originalDirectory); err != nil {
+			t.Errorf("restore working directory: %v", err)
+		}
+	})
+	temporaryFile := filepath.Join(directory, "download.tmp")
+	if err := os.WriteFile(temporaryFile, []byte("temporary"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	command := cmdks.CleanCmd()
+	command.SetArgs([]string{"--path", "", "--quiet"})
+	if err := command.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(temporaryFile); !os.IsNotExist(err) {
+		t.Fatalf("empty --path did not clean the current directory: %v", err)
 	}
 }
 
@@ -56,12 +77,12 @@ func TestLegacyPositionalArgumentsRemainAccepted(t *testing.T) {
 		args []string
 		new  commandFactory
 	}{
-		{name: "info", args: []string{"7304"}, new: InfoCmd},
-		{name: "save", args: []string{"7304"}, new: SaveCmd},
-		{name: "record", args: []string{"751111"}, new: RecordCmd},
-		{name: "merge", args: []string{"."}, new: MergeCmd},
-		{name: "slide", args: []string{"7405"}, new: SlideCmd},
-		{name: "login with phone", args: []string{"13800138000"}, new: LoginCmd},
+		{name: "info", args: []string{"7304"}, new: cmdks.InfoCmd},
+		{name: "save", args: []string{"7304"}, new: cmdks.SaveCmd},
+		{name: "record", args: []string{"751111"}, new: cmdks.RecordCmd},
+		{name: "merge", args: []string{"."}, new: cmdks.MergeCmd},
+		{name: "slide", args: []string{"7405"}, new: cmdks.SlideCmd},
+		{name: "login with phone", args: []string{"13800138000"}, new: cmdks.LoginCmd},
 	}
 	for _, test := range tests {
 		command := test.new()

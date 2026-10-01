@@ -1,4 +1,4 @@
-package hls
+package test
 
 import (
 	"bytes"
@@ -10,11 +10,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/yliu7949/KouShare-dl/internal/hls"
 )
 
 func TestDownloadAES128HLS(t *testing.T) {
@@ -41,7 +42,7 @@ func TestDownloadAES128HLS(t *testing.T) {
 
 	var output bytes.Buffer
 	var progress []int
-	err := (Downloader{Client: server.Client()}).Download(context.Background(), server.URL+"/master.m3u8", &output, func(done, total int) {
+	err := (hls.Downloader{Client: server.Client()}).Download(context.Background(), server.URL+"/master.m3u8", &output, func(done, total int) {
 		if total != len(parts) {
 			t.Fatalf("total = %d", total)
 		}
@@ -60,16 +61,27 @@ func TestDownloadAES128HLS(t *testing.T) {
 }
 
 func TestParsePlaylistUsesSequenceAsIV(t *testing.T) {
-	base, err := url.Parse("https://example.test/path/media.m3u8")
+	key := []byte("0123456789abcdef")
+	iv := make([]byte, aes.BlockSize)
+	iv[len(iv)-1] = 7
+	want := []byte("sequence-derived initialization vector")
+
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+	mux.HandleFunc("/media.m3u8", func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, "#EXTM3U\n#EXT-X-MEDIA-SEQUENCE:7\n#EXT-X-KEY:METHOD=AES-128,URI=key.bin\n#EXTINF:1,\na.ts\n#EXT-X-ENDLIST\n")
+	})
+	mux.HandleFunc("/key.bin", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(key) })
+	mux.HandleFunc("/a.ts", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(encrypt(want, key, iv)) })
+
+	var output bytes.Buffer
+	err := (hls.Downloader{Client: server.Client()}).Download(context.Background(), server.URL+"/media.m3u8", &output, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pl, err := parsePlaylist([]byte("#EXTM3U\n#EXT-X-MEDIA-SEQUENCE:7\n#EXT-X-KEY:METHOD=AES-128,URI=key.bin\n#EXTINF:1,\na.ts\n"), base)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(pl.Segments) != 1 || pl.Segments[0].IV[15] != 7 {
-		t.Fatalf("unexpected playlist: %#v", pl)
+	if !bytes.Equal(output.Bytes(), want) {
+		t.Fatalf("output = %q, want %q", output.Bytes(), want)
 	}
 }
 
@@ -96,7 +108,7 @@ func TestDownloadRetriesMalformedEncryptedSegment(t *testing.T) {
 	})
 
 	var output bytes.Buffer
-	err := (Downloader{Client: server.Client(), RetryDelay: time.Millisecond}).Download(context.Background(), server.URL+"/media.m3u8", &output, nil)
+	err := (hls.Downloader{Client: server.Client(), RetryDelay: time.Millisecond}).Download(context.Background(), server.URL+"/media.m3u8", &output, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +142,7 @@ func TestDownloadRefreshingReplacesSignedPlaylist(t *testing.T) {
 	}
 
 	var output bytes.Buffer
-	downloader := Downloader{Client: server.Client(), RefreshInterval: 2, RetryDelay: time.Millisecond, RefreshDelay: time.Millisecond}
+	downloader := hls.Downloader{Client: server.Client(), RefreshInterval: 2, RetryDelay: time.Millisecond, RefreshDelay: time.Millisecond}
 	err := downloader.DownloadRefreshing(context.Background(), server.URL+"/initial.m3u8", func(context.Context) (string, error) {
 		refreshes++
 		return server.URL + "/fresh.m3u8", nil
@@ -177,7 +189,7 @@ func TestDownloadFetchesSegmentsConcurrentlyAndWritesInOrder(t *testing.T) {
 	}
 
 	var output bytes.Buffer
-	err := (Downloader{Client: server.Client(), Concurrency: 4}).Download(context.Background(), server.URL+"/media.m3u8", &output, nil)
+	err := (hls.Downloader{Client: server.Client(), Concurrency: 4}).Download(context.Background(), server.URL+"/media.m3u8", &output, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,21 +206,23 @@ func TestDownloadFetchesSegmentsConcurrentlyAndWritesInOrder(t *testing.T) {
 }
 
 func TestFetchRedactsSignedQueryFromErrors(t *testing.T) {
-	target, err := url.Parse("https://media.example/video.ts?sign=secret-token&expires=123")
-	if err != nil {
-		t.Fatal(err)
-	}
 	client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
 		return nil, errors.New("connection failed")
 	})}
-	_, err = (Downloader{Client: client}).fetch(context.Background(), target, 1024)
+	var output bytes.Buffer
+	err := (hls.Downloader{Client: client, RetryDelay: time.Millisecond, RefreshDelay: time.Millisecond}).Download(
+		context.Background(),
+		"https://media.example/video.m3u8?sign=secret-token&expires=123",
+		&output,
+		nil,
+	)
 	if err == nil {
 		t.Fatal("fetch unexpectedly succeeded")
 	}
 	if strings.Contains(err.Error(), "secret-token") || strings.Contains(err.Error(), "expires=") {
 		t.Fatalf("error leaked signed query: %v", err)
 	}
-	if !strings.Contains(err.Error(), "https://media.example/video.ts") {
+	if !strings.Contains(err.Error(), "https://media.example/video.m3u8") {
 		t.Fatalf("error omitted safe URL context: %v", err)
 	}
 }
@@ -237,7 +251,7 @@ func TestRecordPollsAndDeduplicatesSegments(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var output bytes.Buffer
-	err := (Downloader{Client: server.Client()}).Record(ctx, server.URL+"/live.m3u8", &output, time.Millisecond, func(total int) {
+	err := (hls.Downloader{Client: server.Client()}).Record(ctx, server.URL+"/live.m3u8", &output, time.Millisecond, func(total int) {
 		if total == 2 {
 			cancel()
 		}

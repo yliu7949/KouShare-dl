@@ -1,9 +1,10 @@
-package video
+package test
 
 import (
 	"testing"
 
 	"github.com/yliu7949/KouShare-dl/internal/koushare"
+	"github.com/yliu7949/KouShare-dl/internal/videoopts"
 )
 
 func TestSelectQualityPolicy(t *testing.T) {
@@ -12,7 +13,7 @@ func TestSelectQualityPolicy(t *testing.T) {
 		quality string
 		want    int
 	}{{"high", 1080}, {"standard", 720}, {"low", 480}} {
-		got, err := chooseVideoStream(append([]koushare.VideoStream(nil), streams...), test.quality)
+		got, err := videoopts.ChooseStream(append([]koushare.VideoStream(nil), streams...), test.quality)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -20,19 +21,19 @@ func TestSelectQualityPolicy(t *testing.T) {
 			t.Fatalf("quality %s selected %d, want %d", test.quality, got.Height, test.want)
 		}
 	}
-	if _, err := chooseVideoStream(streams, "4k"); err == nil {
+	if _, err := videoopts.ChooseStream(streams, "4k"); err == nil {
 		t.Fatal("expected invalid quality error")
 	}
 }
 
 func TestSanitizeFilename(t *testing.T) {
-	if got := sanitizeFilename(`a/b:c*?"<>|`); got != "abc" {
+	if got := videoopts.SanitizeFilename(`a/b:c*?"<>|`); got != "abc" {
 		t.Fatalf("sanitizeFilename = %q", got)
 	}
 }
 
 func TestParseVids(t *testing.T) {
-	got, err := parseVids("[226845,123,226845]")
+	got, err := videoopts.ParseIDs("[226845,123,226845]")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +41,7 @@ func TestParseVids(t *testing.T) {
 		t.Fatalf("parseVids returned %#v", got)
 	}
 	for _, invalid := range []string{"", "226845", "[1, 2]", "[]"} {
-		if _, err := parseVids(invalid); err == nil {
+		if _, err := videoopts.ParseIDs(invalid); err == nil {
 			t.Errorf("parseVids(%q) unexpectedly succeeded", invalid)
 		}
 	}

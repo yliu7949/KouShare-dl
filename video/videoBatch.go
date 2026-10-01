@@ -2,9 +2,9 @@ package video
 
 import (
 	"fmt"
-	"regexp"
-	"strings"
 	"sync"
+
+	"github.com/yliu7949/KouShare-dl/internal/videoopts"
 )
 
 // Batch 包含多个 Video 的信息
@@ -58,7 +58,7 @@ func (b *Batch) DownloadMultiVideos() {
 // inspectVids 检查用户输入的视频 vid 列表，若无错误则将视频信息解析到 VideoList 中
 func (b *Batch) inspectVids() {
 	b.VideoList = nil
-	vids, err := parseVids(b.Vids)
+	vids, err := videoopts.ParseIDs(b.Vids)
 	if err != nil {
 		fmt.Println("\n" + err.Error())
 		return
@@ -66,23 +66,4 @@ func (b *Batch) inspectVids() {
 	for _, vid := range vids {
 		b.VideoList = append(b.VideoList, Video{Vid: vid})
 	}
-}
-
-func parseVids(value string) ([]string, error) {
-	match, _ := regexp.MatchString(`^\[\d+(,\d+)*]$`, value)
-	if !match {
-		return nil, fmt.Errorf("vids 参数格式错误，应为 [vid1,vid2,...]，vid 之间用英文逗号分隔，且参数中不能包含空格")
-	}
-	vids := make([]string, 0)
-	seen := make(map[string]bool)
-	for _, vid := range strings.Split(value[1:len(value)-1], ",") {
-		if vid != "" {
-			if seen[vid] {
-				continue
-			}
-			seen[vid] = true
-			vids = append(vids, vid)
-		}
-	}
-	return vids, nil
 }
