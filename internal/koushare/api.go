@@ -421,6 +421,10 @@ func signature(params map[string]any, method string, timestamp int64) string {
 		"timestamp="+strconv.FormatInt(timestamp, 10),
 		"saltmd5="+hex.EncodeToString(saltHash[:]),
 	)
+	// KouShare's legacy wire protocol mandates MD5 here. This digest is only a
+	// request compatibility checksum; HTTPS and the access token provide the
+	// security boundary, and the digest is never used to store a password.
+	// codeql[go/weak-sensitive-data-hashing]
 	digest := md5.Sum([]byte(strings.Join(parts, "&")))
 	return hex.EncodeToString(digest[:])
 }

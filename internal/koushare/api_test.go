@@ -36,6 +36,17 @@ func TestSignatureMatchesHAREmptyPost(t *testing.T) {
 	}
 }
 
+func TestSignaturePreservesPasswordProtocolCompatibility(t *testing.T) {
+	got := signature(map[string]any{
+		"id":       "226845",
+		"password": "live-room-password",
+	}, http.MethodPost, 1790845412582)
+	const want = "8693e4522bcd65d387c2cbd8da68249b"
+	if got != want {
+		t.Fatalf("signature = %q, want %q", got, want)
+	}
+}
+
 func TestVideoInfoAPI(t *testing.T) {
 	client := testClient(t, func(w http.ResponseWriter, r *http.Request) {
 		assertRequest(t, r, http.MethodGet, "/video/v1/video/infoV2", url.Values{"id": {"226895"}})
