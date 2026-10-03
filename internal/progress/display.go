@@ -23,7 +23,6 @@ type Snapshot struct {
 
 // Display renders an in-place progress bar compatible with the legacy CLI.
 type Display struct {
-	label     string
 	output    io.Writer
 	startedAt time.Time
 	lastWidth int
@@ -43,7 +42,12 @@ func New(label string, output io.Writer) *Display {
 	if output == nil {
 		output = io.Discard
 	}
-	return &Display{label: label, output: output, startedAt: time.Now()}
+	if label != "" {
+		terminalOutputMu.Lock()
+		fmt.Fprintln(output, label)
+		terminalOutputMu.Unlock()
+	}
+	return &Display{output: output, startedAt: time.Now()}
 }
 
 // WrapWriter creates a writer that renders byte-based download progress.
@@ -119,12 +123,12 @@ func (d *Display) render(snapshot Snapshot, finished bool) {
 	}
 	counts := ""
 	if snapshot.Unit != "" && determinate {
-		counts = fmt.Sprintf("  %d/%d %s", snapshot.Current, snapshot.Total, snapshot.Unit)
+		counts = fmt.Sprintf("  %d/%d", snapshot.Current, snapshot.Total)
 	} else if determinate {
 		counts = fmt.Sprintf("  %s/%s", formatBytes(snapshot.Current), formatBytes(snapshot.Total))
 	}
-	line := fmt.Sprintf("[%-50s] %s  %s  %s/s  ETA %s%s  %s",
-		strings.Repeat(">", filled), percentText, formatBytes(snapshot.Bytes), formatBytes(int64(speed)), eta, counts, d.label)
+	line := fmt.Sprintf("[%-50s] %s  %s  %s/s  ETA %s%s",
+		strings.Repeat(">", filled), percentText, formatBytes(snapshot.Bytes), formatBytes(int64(speed)), eta, counts)
 	padding := ""
 	if d.lastWidth > len(line) {
 		padding = strings.Repeat(" ", d.lastWidth-len(line))
