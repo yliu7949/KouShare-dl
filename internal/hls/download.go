@@ -47,24 +47,37 @@ type playlist struct {
 	MediaSequence uint64
 }
 
+// Progress reports completed media segments and their decrypted payload size.
+type Progress struct {
+	Completed       int
+	Total           int
+	DownloadedBytes int64
+}
+
+type progressTracker struct {
+	callback func(Progress)
+	current  Progress
+	mu       sync.Mutex
+}
+
 // Download writes a VOD HLS stream as a concatenated MPEG-TS stream. It
 // follows standard AES-128 key declarations from the playlist and only uses
 // URLs that the server returned to the caller.
-func (d Downloader) Download(ctx context.Context, playlistURL string, dst io.Writer, progress func(done, total int)) error {
+func (d Downloader) Download(ctx context.Context, playlistURL string, dst io.Writer, progress func(Progress)) error {
 	return d.download(ctx, playlistURL, nil, dst, progress)
 }
 
 // DownloadRefreshing periodically obtains a newly signed playlist URL. Some
 // media CDNs cap the number of resource requests allowed by one signed URL,
 // even though the VOD playlist contains more segments than that cap.
-func (d Downloader) DownloadRefreshing(ctx context.Context, playlistURL string, refresh func(context.Context) (string, error), dst io.Writer, progress func(done, total int)) error {
+func (d Downloader) DownloadRefreshing(ctx context.Context, playlistURL string, refresh func(context.Context) (string, error), dst io.Writer, progress func(Progress)) error {
 	if refresh == nil {
 		return errors.New("HLS 刷新函数不能为空")
 	}
 	return d.download(ctx, playlistURL, refresh, dst, progress)
 }
 
-func (d Downloader) download(ctx context.Context, playlistURL string, refresh func(context.Context) (string, error), dst io.Writer, progress func(done, total int)) error {
+func (d Downloader) download(ctx context.Context, playlistURL string, refresh func(context.Context) (string, error), dst io.Writer, progress func(Progress)) error {
 	d.renewClient()
 	u, err := url.Parse(playlistURL)
 	if err != nil {
@@ -95,6 +108,10 @@ func (d Downloader) download(ctx context.Context, playlistURL string, refresh fu
 	}
 	batchSize = min(batchSize, refreshInterval)
 	total := len(pl.Segments)
+	tracker := &progressTracker{
+		callback: progress,
+		current:  Progress{Total: total},
+	}
 	nextRefresh := refreshInterval
 	for start := 0; start < total; {
 		if refresh != nil && start == nextRefresh {
@@ -110,8 +127,12 @@ func (d Downloader) download(ctx context.Context, playlistURL string, refresh fu
 			end = min(end, nextRefresh)
 		}
 		var batchErr error
+		batchStart := tracker.snapshot()
 		for attempt := 0; attempt < maxSegmentAttempts; attempt++ {
-			batchErr = d.downloadBatch(ctx, pl.Segments[start:end], start, total, dst, progress)
+			if attempt > 0 {
+				tracker.reset(batchStart)
+			}
+			batchErr = d.downloadBatch(ctx, pl.Segments[start:end], start, total, dst, tracker)
 			if batchErr == nil {
 				break
 			}
@@ -187,7 +208,7 @@ func (d *Downloader) refreshPlaylistWithRetry(ctx context.Context, refresh func(
 	return playlist{}, fmt.Errorf("重试 %d 次后仍失败: %w", maxSegmentAttempts, lastErr)
 }
 
-func (d Downloader) downloadBatch(ctx context.Context, items []segment, offset, total int, dst io.Writer, progress func(done, total int)) error {
+func (d Downloader) downloadBatch(ctx context.Context, items []segment, offset, total int, dst io.Writer, progress *progressTracker) error {
 	keys, err := d.loadKeys(ctx, items)
 	if err != nil {
 		return err
@@ -220,6 +241,7 @@ func (d Downloader) downloadBatch(ctx context.Context, items []segment, offset, 
 					continue
 				}
 				results[index] = data
+				progress.complete(int64(len(data)))
 			}
 		}()
 	}
@@ -231,15 +253,37 @@ func (d Downloader) downloadBatch(ctx context.Context, items []segment, offset, 
 	if batchErr != nil {
 		return batchErr
 	}
-	for index, data := range results {
+	for _, data := range results {
 		if _, err := dst.Write(data); err != nil {
 			return fmt.Errorf("写入 HLS 片段: %w", err)
 		}
-		if progress != nil {
-			progress(offset+index+1, total)
-		}
 	}
 	return nil
+}
+
+func (p *progressTracker) complete(bytes int64) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.current.Completed++
+	p.current.DownloadedBytes += bytes
+	if p.callback != nil {
+		p.callback(p.current)
+	}
+}
+
+func (p *progressTracker) snapshot() Progress {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.current
+}
+
+func (p *progressTracker) reset(snapshot Progress) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.current = snapshot
+	if p.callback != nil {
+		p.callback(p.current)
+	}
 }
 
 func (d Downloader) loadKeys(ctx context.Context, items []segment) (map[string][]byte, error) {

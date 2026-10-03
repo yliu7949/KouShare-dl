@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/yliu7949/KouShare-dl/internal/hls"
+	"github.com/yliu7949/KouShare-dl/internal/progress"
 	"github.com/yliu7949/KouShare-dl/internal/proxy"
 	"github.com/yliu7949/KouShare-dl/user"
 	"github.com/yliu7949/KouShare-dl/video"
@@ -97,7 +98,27 @@ func (l *Live) downloadReplayURL(sourceURL, suffix string) {
 		return
 	}
 	if strings.Contains(strings.ToLower(sourceURL), ".m3u8") {
-		err = (hls.Downloader{Client: &proxy.Client}).Download(context.Background(), sourceURL, dst, nil)
+		display := progress.New(fmt.Sprintf("%s %s", l.info.Title, suffix), os.Stdout)
+		lastProgress := hls.Progress{}
+		err = (hls.Downloader{Client: &proxy.Client}).Download(context.Background(), sourceURL, dst, func(current hls.Progress) {
+			lastProgress = current
+			display.Update(progress.Snapshot{
+				Current: int64(current.Completed),
+				Total:   int64(current.Total),
+				Bytes:   current.DownloadedBytes,
+				Unit:    "个片段",
+			})
+		})
+		if err != nil {
+			display.Break()
+		} else {
+			display.Finish(progress.Snapshot{
+				Current: int64(lastProgress.Total),
+				Total:   int64(lastProgress.Total),
+				Bytes:   lastProgress.DownloadedBytes,
+				Unit:    "个片段",
+			})
+		}
 	} else {
 		err = fmt.Errorf("回放地址不是受支持的 HLS 清单")
 	}

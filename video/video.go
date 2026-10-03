@@ -12,6 +12,7 @@ import (
 
 	"github.com/yliu7949/KouShare-dl/internal/hls"
 	"github.com/yliu7949/KouShare-dl/internal/koushare"
+	"github.com/yliu7949/KouShare-dl/internal/progress"
 	"github.com/yliu7949/KouShare-dl/internal/proxy"
 	"github.com/yliu7949/KouShare-dl/internal/videoopts"
 	"github.com/yliu7949/KouShare-dl/user"
@@ -109,7 +110,8 @@ func (v *Video) downloadHLS(playlistURL, quality, baseName string) {
 		fmt.Println("创建临时文件失败：", err)
 		return
 	}
-	lastDone := 0
+	display := progress.New(fmt.Sprintf("%s  vid=%s", v.info.Title, v.Vid), os.Stdout)
+	lastProgress := hls.Progress{}
 	refresh := func(ctx context.Context) (string, error) {
 		stream, refreshErr := v.selectStream(quality)
 		if refreshErr != nil {
@@ -117,22 +119,32 @@ func (v *Video) downloadHLS(playlistURL, quality, baseName string) {
 		}
 		return stream.FileURL, nil
 	}
-	err = (hls.Downloader{Client: &proxy.Client, Concurrency: v.Concurrency}).DownloadRefreshing(context.Background(), playlistURL, refresh, dst, func(done, total int) {
-		if done == total || done-lastDone >= max(1, total/100) {
-			fmt.Printf("\r下载 %s：%d/%d 个片段", v.info.Title, done, total)
-			lastDone = done
-		}
+	err = (hls.Downloader{Client: &proxy.Client, Concurrency: v.Concurrency}).DownloadRefreshing(context.Background(), playlistURL, refresh, dst, func(current hls.Progress) {
+		lastProgress = current
+		display.Update(progress.Snapshot{
+			Current: int64(current.Completed),
+			Total:   int64(current.Total),
+			Bytes:   current.DownloadedBytes,
+			Unit:    "个片段",
+		})
 	})
 	closeErr := dst.Close()
-	fmt.Println()
 	if err != nil {
+		display.Break()
 		fmt.Println("下载失败（可重新运行以重试）：", err)
 		return
 	}
 	if closeErr != nil {
+		display.Break()
 		fmt.Println("关闭临时文件失败：", closeErr)
 		return
 	}
+	display.Finish(progress.Snapshot{
+		Current: int64(lastProgress.Total),
+		Total:   int64(lastProgress.Total),
+		Bytes:   lastProgress.DownloadedBytes,
+		Unit:    "个片段",
+	})
 	if err := os.Rename(temporaryName, finalName); err != nil {
 		fmt.Println("完成临时文件重命名失败：", err)
 		return
@@ -169,12 +181,16 @@ func (v *Video) downloadFile(sourceURL, filename string) {
 		fmt.Println("创建临时文件失败：", err)
 		return
 	}
-	_, copyErr := io.Copy(dst, resp.Body)
+	display := progress.New(fmt.Sprintf("%s  vid=%s", v.info.Title, v.Vid), os.Stdout)
+	progressWriter := display.WrapWriter(dst, resp.ContentLength)
+	_, copyErr := io.Copy(progressWriter, resp.Body)
 	closeErr := dst.Close()
 	if copyErr != nil || closeErr != nil {
+		display.Break()
 		fmt.Println("写入视频失败：", errorsJoin(copyErr, closeErr))
 		return
 	}
+	progressWriter.Finish()
 	if err := os.Rename(temporaryName, finalName); err != nil {
 		fmt.Println("完成临时文件重命名失败：", err)
 		return

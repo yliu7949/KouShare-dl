@@ -41,12 +41,12 @@ func TestDownloadAES128HLS(t *testing.T) {
 	}
 
 	var output bytes.Buffer
-	var progress []int
-	err := (hls.Downloader{Client: server.Client()}).Download(context.Background(), server.URL+"/master.m3u8", &output, func(done, total int) {
-		if total != len(parts) {
-			t.Fatalf("total = %d", total)
+	var updates []hls.Progress
+	err := (hls.Downloader{Client: server.Client()}).Download(context.Background(), server.URL+"/master.m3u8", &output, func(current hls.Progress) {
+		if current.Total != len(parts) {
+			t.Fatalf("total = %d", current.Total)
 		}
-		progress = append(progress, done)
+		updates = append(updates, current)
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -55,8 +55,8 @@ func TestDownloadAES128HLS(t *testing.T) {
 	if !bytes.Equal(output.Bytes(), want) {
 		t.Fatalf("output = %q, want %q", output.Bytes(), want)
 	}
-	if len(progress) != 2 || progress[1] != 2 {
-		t.Fatalf("progress = %#v", progress)
+	if len(updates) != 2 || updates[1].Completed != 2 || updates[1].DownloadedBytes != int64(len(want)) {
+		t.Fatalf("progress = %#v", updates)
 	}
 }
 
@@ -202,6 +202,47 @@ func TestDownloadFetchesSegmentsConcurrentlyAndWritesInOrder(t *testing.T) {
 	}
 	if output.String() != want.String() {
 		t.Fatalf("output = %q, want %q", output.String(), want.String())
+	}
+}
+
+func TestDownloadReportsProgressBeforeSlowBatchFinishes(t *testing.T) {
+	releaseSlowSegment := make(chan struct{})
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+	mux.HandleFunc("/media.m3u8", func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, "#EXTM3U\n#EXTINF:1,\n0.ts\n#EXTINF:1,\n1.ts\n#EXT-X-ENDLIST\n")
+	})
+	mux.HandleFunc("/0.ts", func(w http.ResponseWriter, _ *http.Request) {
+		<-releaseSlowSegment
+		fmt.Fprint(w, "slow")
+	})
+	mux.HandleFunc("/1.ts", func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, "fast")
+	})
+
+	updates := make(chan hls.Progress, 2)
+	done := make(chan error, 1)
+	go func() {
+		var output bytes.Buffer
+		done <- (hls.Downloader{Client: server.Client(), Concurrency: 2}).Download(
+			context.Background(), server.URL+"/media.m3u8", &output,
+			func(current hls.Progress) { updates <- current },
+		)
+	}()
+
+	select {
+	case current := <-updates:
+		if current.Completed != 1 || current.DownloadedBytes != int64(len("fast")) {
+			t.Fatalf("first progress = %#v", current)
+		}
+		close(releaseSlowSegment)
+	case <-time.After(time.Second):
+		close(releaseSlowSegment)
+		t.Fatal("progress waited for the entire batch")
+	}
+	if err := <-done; err != nil {
+		t.Fatal(err)
 	}
 }
 
