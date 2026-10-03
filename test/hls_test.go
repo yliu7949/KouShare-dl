@@ -55,7 +55,7 @@ func TestDownloadAES128HLS(t *testing.T) {
 	if !bytes.Equal(output.Bytes(), want) {
 		t.Fatalf("output = %q, want %q", output.Bytes(), want)
 	}
-	if len(updates) != 2 || updates[1].Completed != 2 || updates[1].DownloadedBytes != int64(len(want)) {
+	if len(updates) != 3 || updates[0].Completed != 0 || updates[2].Completed != 2 || updates[2].DownloadedBytes != int64(len(want)) {
 		t.Fatalf("progress = %#v", updates)
 	}
 }
@@ -227,7 +227,11 @@ func TestDownloadReportsProgressBeforeSlowBatchFinishes(t *testing.T) {
 		var output bytes.Buffer
 		done <- (hls.Downloader{Client: server.Client(), Concurrency: 2}).Download(
 			context.Background(), server.URL+"/media.m3u8", &output,
-			func(current hls.Progress) { updates <- current },
+			func(current hls.Progress) {
+				if current.Completed > 0 {
+					updates <- current
+				}
+			},
 		)
 	}()
 

@@ -24,7 +24,7 @@ func TestDownloadProgressShowsLegacyBarSpeedAndETA(t *testing.T) {
 		Unit:    "个片段",
 	})
 	rendered := output.String()
-	for _, want := range []string{"[>>>>>>>>", " 50%", "5.00MiB", "/s", "ETA", "50/100", "示例视频  vid=123", "100%"} {
+	for _, want := range []string{"[>>>>>>>>", " 50%", "5.00MiB", "/s", "ETA", "示例视频  vid=123  50/100", "100%"} {
 		if !strings.Contains(rendered, want) {
 			t.Errorf("progress output does not contain %q: %q", want, rendered)
 		}
@@ -32,7 +32,7 @@ func TestDownloadProgressShowsLegacyBarSpeedAndETA(t *testing.T) {
 	if strings.Contains(rendered, "个片段") {
 		t.Fatalf("progress output contains the removed unit: %q", rendered)
 	}
-	if !strings.HasPrefix(rendered, "示例视频  vid=123\n\r[") {
+	if !strings.HasPrefix(rendered, "示例视频  vid=123  50/100\n\r[") {
 		t.Fatalf("title was not rendered before the progress bar: %q", rendered)
 	}
 	if !strings.HasSuffix(rendered, "\n") {

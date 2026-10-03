@@ -112,6 +112,7 @@ func (d Downloader) download(ctx context.Context, playlistURL string, refresh fu
 		callback: progress,
 		current:  Progress{Total: total},
 	}
+	tracker.report()
 	nextRefresh := refreshInterval
 	for start := 0; start < total; {
 		if refresh != nil && start == nextRefresh {
@@ -266,6 +267,14 @@ func (p *progressTracker) complete(bytes int64) {
 	defer p.mu.Unlock()
 	p.current.Completed++
 	p.current.DownloadedBytes += bytes
+	if p.callback != nil {
+		p.callback(p.current)
+	}
+}
+
+func (p *progressTracker) report() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	if p.callback != nil {
 		p.callback(p.current)
 	}

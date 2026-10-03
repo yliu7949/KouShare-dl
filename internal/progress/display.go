@@ -23,8 +23,10 @@ type Snapshot struct {
 
 // Display renders an in-place progress bar compatible with the legacy CLI.
 type Display struct {
+	label     string
 	output    io.Writer
 	startedAt time.Time
+	started   bool
 	lastWidth int
 	mu        sync.Mutex
 }
@@ -42,12 +44,7 @@ func New(label string, output io.Writer) *Display {
 	if output == nil {
 		output = io.Discard
 	}
-	if label != "" {
-		terminalOutputMu.Lock()
-		fmt.Fprintln(output, label)
-		terminalOutputMu.Unlock()
-	}
-	return &Display{output: output, startedAt: time.Now()}
+	return &Display{label: label, output: output, startedAt: time.Now()}
 }
 
 // WrapWriter creates a writer that renders byte-based download progress.
@@ -86,8 +83,9 @@ func (d *Display) Break() {
 	defer d.mu.Unlock()
 	terminalOutputMu.Lock()
 	defer terminalOutputMu.Unlock()
-	if d.lastWidth > 0 {
+	if d.started {
 		fmt.Fprintln(d.output)
+		d.started = false
 		d.lastWidth = 0
 	}
 }
@@ -121,22 +119,26 @@ func (d *Display) render(snapshot Snapshot, finished bool) {
 	} else if determinate && snapshot.Current == snapshot.Total {
 		eta = "00:00"
 	}
-	counts := ""
+	header := d.label
 	if snapshot.Unit != "" && determinate {
-		counts = fmt.Sprintf("  %d/%d", snapshot.Current, snapshot.Total)
-	} else if determinate {
-		counts = fmt.Sprintf("  %s/%s", formatBytes(snapshot.Current), formatBytes(snapshot.Total))
+		header += fmt.Sprintf("  %d/%d", snapshot.Current, snapshot.Total)
 	}
-	line := fmt.Sprintf("[%-50s] %s  %s  %s/s  ETA %s%s",
-		strings.Repeat(">", filled), percentText, formatBytes(snapshot.Bytes), formatBytes(int64(speed)), eta, counts)
+	line := fmt.Sprintf("[%-50s] %s  %s  %s/s  ETA %s",
+		strings.Repeat(">", filled), percentText, formatBytes(snapshot.Bytes), formatBytes(int64(speed)), eta)
 	padding := ""
 	if d.lastWidth > len(line) {
 		padding = strings.Repeat(" ", d.lastWidth-len(line))
 	}
 	terminalOutputMu.Lock()
-	fmt.Fprintf(d.output, "\r%s%s", line, padding)
+	if d.started {
+		fmt.Fprintf(d.output, "\r\033[1A\033[2K\r%s\n\033[2K\r%s%s", header, line, padding)
+	} else {
+		fmt.Fprintf(d.output, "%s\n\r%s%s", header, line, padding)
+		d.started = true
+	}
 	if finished {
 		fmt.Fprintln(d.output)
+		d.started = false
 	}
 	terminalOutputMu.Unlock()
 	d.lastWidth = len(line)
